@@ -1,0 +1,456 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Indian Stock Trading System{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <!-- Portfolio Overview -->
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card {% if portfolio.total_pnl >= 0 %}success{% else %}danger{% endif %}">
+            <div class="card-body text-center">
+                <i class="fas fa-wallet fa-2x mb-3"></i>
+                <h3 class="mb-1">₹{{ portfolio.total_value | default(0) | round(2) }}</h3>
+                <p class="mb-0">Total Portfolio</p>
+                <small class="opacity-75">
+                    P&L: ₹{{ portfolio.total_pnl | default(0) | round(2) }} 
+                    ({{ portfolio.return_pct | default(0) | round(2) }}%)
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily P&L -->
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card {% if daily_pnl >= 0 %}success{% else %}danger{% endif %}">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-2x mb-3"></i>
+                <h3 class="mb-1">₹{{ daily_pnl | default(0) | round(2) }}</h3>
+                <p class="mb-0">Today's P&L</p>
+                <small class="opacity-75">Target: ₹3,000</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Positions -->
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <i class="fas fa-layer-group fa-2x mb-3"></i>
+                <h3 class="mb-1">{{ portfolio.positions_count | default(0) }}</h3>
+                <p class="mb-0">Active Positions</p>
+                <small class="opacity-75">Max: 5 positions</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trades Today -->
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card warning">
+            <div class="card-body text-center">
+                <i class="fas fa-exchange-alt fa-2x mb-3"></i>
+                <h3 class="mb-1">{{ trade_count | default(0) }}</h3>
+                <p class="mb-0">Trades Today</p>
+                <small class="opacity-75">{{ system_status.trades_today | default(0) }} total</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Market Status & System Info -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-area"></i>
+                    Market Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>Market Regime</h6>
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="regime-indicator regime-{{ regime.regime or 'sideways' }}"></span>
+                            <span class="fw-bold text-capitalize">{{ regime.regime or 'Unknown' }}</span>
+                            <span class="badge badge-custom bg-primary ms-2">
+                                {{ "{:.0f}".format(regime.confidence or 0) }}%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Market Status</h6>
+                        <div class="mb-3">
+                            {% if market_status.is_open %}
+                                <span class="badge badge-custom bg-success">
+                                    <i class="fas fa-play"></i> Market Open
+                                </span>
+                            {% else %}
+                                <span class="badge badge-custom bg-secondary">
+                                    <i class="fas fa-pause"></i> Market Closed
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>System Status</h6>
+                        <div class="mb-3">
+                            {% if system_status.running %}
+                                <span class="badge badge-custom bg-success">
+                                    <i class="fas fa-check"></i> Running
+                                </span>
+                            {% else %}
+                                <span class="badge badge-custom bg-warning">
+                                    <i class="fas fa-exclamation"></i> Stopped
+                                </span>
+                            {% endif %}
+                            {% if system_status.errors > 0 %}
+                                <span class="badge badge-custom bg-danger ms-1">
+                                    {{ system_status.errors }} Errors
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if regime.factors %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Market Factors</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <small class="text-muted">Stocks above EMA21</small>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar" style="width: {{ regime.factors.stocks_above_ema21 or 0 }}%">
+                                        {{ "{:.0f}".format(regime.factors.stocks_above_ema21 or 0) }}%
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Average RSI</small>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-info" style="width: {{ regime.factors.avg_rsi or 0 }}%">
+                                        {{ "{:.0f}".format(regime.factors.avg_rsi or 0) }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Market Breadth</small>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-warning" style="width: {{ (regime.factors.market_breadth or 0) * 100 }}%">
+                                        {{ "{:.1f}".format((regime.factors.market_breadth or 0) * 100) }}%
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Price Momentum</small>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-success" style="width: {{ (regime.factors.price_momentum or 0) + 50 }}%">
+                                        {{ "{:.1f}".format(regime.factors.price_momentum or 0) }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bullseye"></i>
+                    Daily Target Progress
+                </h5>
+            </div>
+            <div class="card-body">
+                {% set target_progress = (daily_pnl / 3000 * 100) if daily_pnl is not none else 0 %}
+                <div class="text-center mb-3">
+                    <h4 class="{% if daily_pnl >= 3000 %}text-success{% elif daily_pnl >= 0 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ "{:.1f}".format(target_progress) }}%
+                    </h4>
+                    <p class="text-muted mb-0">of ₹3,000 target</p>
+                </div>
+                
+                <div class="progress mb-3" style="height: 20px;">
+                    <div class="progress-bar {% if daily_pnl >= 3000 %}bg-success{% elif daily_pnl >= 0 %}bg-warning{% else %}bg-danger{% endif %}" 
+                         style="width: {{ max(0, min(100, target_progress)) }}%">
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between text-small">
+                    <span>₹0</span>
+                    <span class="fw-bold">₹{{ "{:,.0f}".format(daily_pnl or 0) }}</span>
+                    <span>₹3,000</span>
+                </div>
+                
+                {% if daily_pnl < 3000 %}
+                <small class="text-muted d-block mt-2 text-center">
+                    ₹{{ "{:,.0f}".format(3000 - (daily_pnl or 0)) }} remaining
+                </small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Positions -->
+{% if portfolio.positions %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clipboard-list"></i>
+                    Current Positions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Quantity</th>
+                                <th>Entry Price</th>
+                                <th>Current Price</th>
+                                <th>P&L</th>
+                                <th>Stop Loss</th>
+                                <th>Target</th>
+                                <th>Entry Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for position in portfolio.positions %}
+                            <tr>
+                                <td class="fw-bold">{{ position.symbol }}</td>
+                                <td>{{ position.quantity }}</td>
+                                <td>₹{{ "{:.2f}".format(position.entry_price) }}</td>
+                                <td>₹{{ "{:.2f}".format(position.current_price) }}</td>
+                                <td class="{% if position.unrealized_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ₹{{ "{:.2f}".format(position.unrealized_pnl) }}
+                                </td>
+                                <td class="text-danger">₹{{ "{:.2f}".format(position.stop_loss) }}</td>
+                                <td class="text-success">₹{{ "{:.2f}".format(position.target_price) }}</td>
+                                <td>{{ position.entry_date }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Trading Signals -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-signal"></i>
+                    Latest Trading Signals
+                </h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshSignals()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                {% if signals %}
+                    <div class="row">
+                        {% for signal in signals %}
+                        <div class="col-lg-6 col-xl-4 mb-3">
+                            <div class="card signal-card {{ signal.action.lower() if signal.action else '' }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0 fw-bold">{{ signal.symbol }}</h6>
+                                        <span class="badge badge-custom bg-{{ 'success' if signal.action == 'BUY' else 'danger' }}">
+                                            {{ signal.action }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="row text-small mb-2">
+                                        <div class="col-6">
+                                            <strong>Price:</strong> ₹{{ "{:.2f}".format(signal.price) }}
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Confidence:</strong> {{ "{:.0f}".format(signal.confidence) }}%
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row text-small mb-2">
+                                        <div class="col-6">
+                                            <strong>Stop Loss:</strong> ₹{{ "{:.2f}".format(signal.stop_loss or 0) }}
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Target:</strong> ₹{{ "{:.2f}".format(signal.target_price or 0) }}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if signal.reasons %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">Reasons:</small>
+                                        <ul class="list-unstyled mb-0 mt-1">
+                                            {% for reason in signal.reasons[:3] %}
+                                            <li class="text-small">
+                                                <i class="fas fa-check text-success"></i> {{ reason }}
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock"></i> 
+                                            {{ signal.timestamp.strftime('%H:%M:%S') if signal.timestamp is not none else 'N/A' }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No trading signals available</h5>
+                        <p class="text-muted">Signals will appear here when market conditions are favorable.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Display -->
+{% if error %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-danger">
+            <h5><i class="fas fa-exclamation-triangle"></i> System Error</h5>
+            <p class="mb-0">{{ error }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-refresh dashboard data every 30 seconds
+    setInterval(function() {
+        if (document.visibilityState === 'visible') {
+            refreshDashboardData();
+        }
+    }, 30000);
+    
+    function refreshDashboardData() {
+        // Refresh portfolio data
+        fetch('/api/portfolio')
+            .then(response => response.json())
+            .then(data => {
+                if (data && !data.error) {
+                    updatePortfolioDisplay(data);
+                }
+            })
+            .catch(error => console.error('Error refreshing portfolio:', error));
+        
+        // Refresh system status
+        fetch('/api/system_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data && !data.error) {
+                    updateSystemStatus(data);
+                }
+            })
+            .catch(error => console.error('Error refreshing system status:', error));
+    }
+    
+    function refreshSignals() {
+        const refreshBtn = document.querySelector('[onclick="refreshSignals()"]');
+        const originalText = refreshBtn.innerHTML;
+        refreshBtn.innerHTML = '<i class="fas fa-spin fa-spinner"></i> Refreshing...';
+        refreshBtn.disabled = true;
+        
+        fetch('/api/signals')
+            .then(response => response.json())
+            .then(data => {
+                if (data && !data.error) {
+                    // Reload page to show new signals
+                    location.reload();
+                } else {
+                    showAlert('Failed to refresh signals', 'warning');
+                }
+            })
+            .catch(error => {
+                showAlert('Error refreshing signals: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                refreshBtn.innerHTML = originalText;
+                refreshBtn.disabled = false;
+            });
+    }
+    
+    function updatePortfolioDisplay(portfolio) {
+        // Update portfolio value
+        const totalValueElement = document.querySelector('.stat-card .card-body h3');
+        if (totalValueElement && portfolio.total_value) {
+            totalValueElement.textContent = '₹' + portfolio.total_value.toLocaleString('en-IN', {minimumFractionDigits: 2});
+        }
+        
+        // Update positions count
+        const positionsElement = document.querySelector('.stat-card:nth-child(3) .card-body h3');
+        if (positionsElement && portfolio.positions_count !== undefined) {
+            positionsElement.textContent = portfolio.positions_count;
+        }
+    }
+    
+    function updateSystemStatus(status) {
+        const statusIndicator = document.getElementById('system-status');
+        if (statusIndicator) {
+            if (status.running) {
+                statusIndicator.innerHTML = '<i class="fas fa-circle text-success"></i>';
+            } else {
+                statusIndicator.innerHTML = '<i class="fas fa-circle text-danger"></i>';
+            }
+        }
+        
+        // Update last update time
+        if (status.last_update) {
+            const lastUpdateElement = document.getElementById('last-update');
+            if (lastUpdateElement) {
+                const updateTime = new Date(status.last_update);
+                lastUpdateElement.textContent = updateTime.toLocaleTimeString();
+            }
+        }
+    }
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+        
+        // Initialize tooltips if Bootstrap tooltips are available
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    });
+</script>
+{% endblock %}

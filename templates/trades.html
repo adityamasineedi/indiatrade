@@ -1,0 +1,577 @@
+{% extends "base.html" %}
+
+{% block title %}Trade History - Indian Stock Trading System{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-history"></i>
+                    Trade History 
+                    <span class="badge badge-custom bg-primary">
+                        {% if trades %}{{ trades|length }}{% else %}0{% endif %} trades
+                    </span>
+                </h5>
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm" onchange="filterByDays(this.value)">
+                        <option value="7" {% if days and days == 7 %}selected{% endif %}>Last 7 days</option>
+                        <option value="30" {% if days and days == 30 %}selected{% endif %}>Last 30 days</option>
+                        <option value="90" {% if days and days == 90 %}selected{% endif %}>Last 90 days</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-primary" onclick="exportTrades()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+            
+            {% if trades and trades|length > 0 %}
+            <!-- Trade Summary Cards -->
+            <div class="card-body border-bottom">
+                <div class="row">
+                    <!-- Calculate totals safely -->
+                    {% set total_pnl = 0 %}
+                    {% set winning_count = 0 %}
+                    {% set losing_count = 0 %}
+                    
+                    {% for trade in trades %}
+                        {% if trade.pnl is defined and trade.pnl is not none %}
+                            {% set total_pnl = total_pnl + trade.pnl %}
+                            {% if trade.pnl > 0 %}
+                                {% set winning_count = winning_count + 1 %}
+                            {% elif trade.pnl < 0 %}
+                                {% set losing_count = losing_count + 1 %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% set total_with_pnl = winning_count + losing_count %}
+                    {% set win_rate = (winning_count / total_with_pnl * 100) if total_with_pnl > 0 else 0 %}
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="text-center">
+                            <h4 class="{% if total_pnl >= 0 %}text-success{% else %}text-danger{% endif %} mb-1">
+                                ₹{{ "{:,.2f}".format(total_pnl) }}
+                            </h4>
+                            <small class="text-muted">Total P&L</small>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="text-center">
+                            <h4 class="text-primary mb-1">{{ "{:.1f}".format(win_rate) }}%</h4>
+                            <small class="text-muted">Win Rate</small>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="text-center">
+                            <h4 class="text-success mb-1">{{ winning_count }}</h4>
+                            <small class="text-muted">Winning Trades</small>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="text-center">
+                            <h4 class="text-danger mb-1">{{ losing_count }}</h4>
+                            <small class="text-muted">Losing Trades</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Trades Table -->
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="tradesTable">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Symbol</th>
+                                <th>Action</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th>Amount</th>
+                                <th>P&L</th>
+                                <th>Commission</th>
+                                <th>Reason</th>
+                                <th>Portfolio Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trade in trades %}
+                            <tr class="trade-row" data-action="{{ trade.action if trade.action else 'UNKNOWN' }}">
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        {% if trade.timestamp %}
+                                            <span>{{ trade.timestamp.strftime('%d/%m/%Y') }}</span>
+                                            <small class="text-muted">{{ trade.timestamp.strftime('%H:%M:%S') }}</small>
+                                        {% else %}
+                                            <span>N/A</span>
+                                            <small class="text-muted">--:--:--</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fw-bold">{{ trade.symbol if trade.symbol else 'N/A' }}</span>
+                                </td>
+                                <td>
+                                    {% if trade.action == 'BUY' %}
+                                        <span class="badge badge-custom bg-success">
+                                            <i class="fas fa-arrow-up"></i> BUY
+                                        </span>
+                                    {% elif trade.action == 'SELL' %}
+                                        <span class="badge badge-custom bg-danger">
+                                            <i class="fas fa-arrow-down"></i> SELL
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-custom bg-secondary">
+                                            <i class="fas fa-question"></i> {{ trade.action if trade.action else 'N/A' }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>₹{{ "{:.2f}".format(trade.price if trade.price else 0) }}</td>
+                                <td>{{ trade.quantity if trade.quantity else 0 }}</td>
+                                <td>₹{{ "{:,.2f}".format(trade.amount if trade.amount else 0) }}</td>
+                                <td>
+                                    {% if trade.pnl is defined and trade.pnl is not none and trade.pnl != 0 %}
+                                        <span class="{% if trade.pnl >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                            {% if trade.pnl >= 0 %}+{% endif %}₹{{ "{:.2f}".format(trade.pnl) }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted">₹{{ "{:.2f}".format(trade.commission if trade.commission else 0) }}</td>
+                                <td>
+                                    {% if trade.reason %}
+                                        <small class="text-muted">
+                                            {% if trade.reason|length > 30 %}
+                                                {{ trade.reason[:30] }}...
+                                            {% else %}
+                                                {{ trade.reason }}
+                                            {% endif %}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted">No reason</small>
+                                    {% endif %}
+                                </td>
+                                <td>₹{{ "{:,.2f}".format(trade.portfolio_value if trade.portfolio_value else 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            {% else %}
+            <!-- No Trades Found -->
+            <div class="card-body">
+                <div class="text-center py-5">
+                    <i class="fas fa-chart-line fa-4x text-muted mb-4"></i>
+                    <h4 class="text-muted">No trades found</h4>
+                    <p class="text-muted">
+                        {% if days and days < 30 %}
+                            No trades in the last {{ days }} days. Try expanding the date range.
+                        {% else %}
+                            No trades recorded yet. Trading activity will appear here once positions are opened.
+                        {% endif %}
+                    </p>
+                    {% if days and days < 90 %}
+                    <button class="btn btn-outline-primary" onclick="filterByDays(90)">
+                        <i class="fas fa-calendar-alt"></i> View Last 90 Days
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if trades and trades|length > 0 %}
+<!-- Hidden data for JavaScript (SAFE METHOD) -->
+<div id="trades-data" style="display: none;">
+    {% for trade in trades %}
+    <div class="trade-item" 
+         data-symbol="{{ trade.symbol if trade.symbol else 'N/A' }}"
+         data-action="{{ trade.action if trade.action else 'UNKNOWN' }}"
+         data-price="{{ trade.price if trade.price else 0 }}"
+         data-quantity="{{ trade.quantity if trade.quantity else 0 }}"
+         data-amount="{{ trade.amount if trade.amount else 0 }}"
+         data-pnl="{{ trade.pnl if trade.pnl is defined and trade.pnl is not none else '' }}"
+         data-commission="{{ trade.commission if trade.commission else 0 }}"
+         data-portfolio-value="{{ trade.portfolio_value if trade.portfolio_value else 0 }}"
+         data-timestamp="{{ trade.timestamp.isoformat() if trade.timestamp else '' }}"
+         data-reason="{{ trade.reason if trade.reason else 'No reason' }}">
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Trade Analysis Charts -->
+<div class="row mt-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-pie"></i>
+                    Trade Distribution
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="tradeDistributionChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-line"></i>
+                    P&L Trend
+                </h6>
+            </div>
+            <div class="card-body">
+                <canvas id="pnlTrendChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Symbol Performance -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-ranking-star"></i>
+                    Symbol Performance
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Total Trades</th>
+                                <th>Winning Trades</th>
+                                <th>Win Rate</th>
+                                <th>Total P&L</th>
+                                <th>Avg P&L per Trade</th>
+                            </tr>
+                        </thead>
+                        <tbody id="symbolPerformanceTable">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Error Display -->
+{% if error %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="alert alert-danger">
+            <h6><i class="fas fa-exclamation-triangle"></i> Error Loading Trades</h6>
+            <p class="mb-0">{{ error }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // SAFE METHOD: Read data from HTML data attributes
+    let tradesData = [];
+    
+    function loadTradesData() {
+        try {
+            const tradeItems = document.querySelectorAll('.trade-item');
+            tradesData = Array.from(tradeItems).map(item => {
+                return {
+                    symbol: item.dataset.symbol || 'N/A',
+                    action: item.dataset.action || 'UNKNOWN',
+                    price: parseFloat(item.dataset.price) || 0,
+                    quantity: parseInt(item.dataset.quantity) || 0,
+                    amount: parseFloat(item.dataset.amount) || 0,
+                    pnl: item.dataset.pnl ? parseFloat(item.dataset.pnl) : null,
+                    commission: parseFloat(item.dataset.commission) || 0,
+                    portfolio_value: parseFloat(item.dataset.portfolioValue) || 0,
+                    timestamp: item.dataset.timestamp || '',
+                    reason: item.dataset.reason || 'No reason'
+                };
+            });
+            console.log('Loaded trades data:', tradesData.length, 'trades');
+        } catch (error) {
+            console.error('Error loading trades data:', error);
+            tradesData = [];
+        }
+    }
+    
+    // Filter by days function
+    function filterByDays(days) {
+        try {
+            window.location.href = `/trades?days=${days}`;
+        } catch (error) {
+            console.error('Error filtering by days:', error);
+        }
+    }
+    
+    // Export trades function
+    function exportTrades() {
+        try {
+            const table = document.getElementById('tradesTable');
+            if (!table) {
+                alert('No table found to export');
+                return;
+            }
+            
+            let csv = '';
+            const rows = table.querySelectorAll('tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].querySelectorAll('th, td');
+                const row = Array.from(cells).map(cell => {
+                    let text = cell.textContent.trim();
+                    text = text.replace(/\s+/g, ' ').replace(/"/g, '""');
+                    return `"${text}"`;
+                }).join(',');
+                csv += row + '\n';
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `trades_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            if (typeof showAlert === 'function') {
+                showAlert('Trade history exported successfully!', 'success');
+            } else {
+                alert('Trade history exported successfully!');
+            }
+        } catch (error) {
+            console.error('Error exporting trades:', error);
+            alert('Error exporting trades. Please try again.');
+        }
+    }
+    
+    // Initialize page when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            loadTradesData();
+            if (tradesData && tradesData.length > 0) {
+                initializeCharts();
+                populateSymbolPerformance();
+            }
+        } catch (error) {
+            console.error('Error initializing trades page:', error);
+        }
+    });
+    
+    // Initialize charts
+    function initializeCharts() {
+        try {
+            // Trade Distribution Chart
+            const tradeDistCtx = document.getElementById('tradeDistributionChart');
+            if (tradeDistCtx && typeof Chart !== 'undefined') {
+                const buyTrades = tradesData.filter(trade => trade.action === 'BUY').length;
+                const sellTrades = tradesData.filter(trade => trade.action === 'SELL').length;
+                
+                if (buyTrades > 0 || sellTrades > 0) {
+                    new Chart(tradeDistCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Buy Orders', 'Sell Orders'],
+                            datasets: [{
+                                data: [buyTrades, sellTrades],
+                                backgroundColor: ['#16a34a', '#dc2626'],
+                                borderWidth: 2,
+                                borderColor: '#ffffff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 20,
+                                        usePointStyle: true
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // P&L Trend Chart
+            const pnlTrendCtx = document.getElementById('pnlTrendChart');
+            if (pnlTrendCtx && typeof Chart !== 'undefined') {
+                const pnlData = [];
+                let cumulativePnl = 0;
+                
+                tradesData.forEach((trade, index) => {
+                    if (trade.pnl !== null && trade.pnl !== undefined && !isNaN(trade.pnl)) {
+                        cumulativePnl += trade.pnl;
+                        pnlData.push({
+                            x: index + 1,
+                            y: cumulativePnl
+                        });
+                    }
+                });
+                
+                if (pnlData.length > 0) {
+                    new Chart(pnlTrendCtx, {
+                        type: 'line',
+                        data: {
+                            datasets: [{
+                                label: 'Cumulative P&L',
+                                data: pnlData,
+                                borderColor: '#2563eb',
+                                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: '#2563eb',
+                                pointBorderColor: '#ffffff',
+                                pointBorderWidth: 2,
+                                pointRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                intersect: false,
+                                mode: 'index'
+                            },
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Trade Number'
+                                    }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'Cumulative P&L (₹)'
+                                    },
+                                    ticks: {
+                                        callback: function(value) {
+                                            return '₹' + value.toLocaleString('en-IN');
+                                        }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return 'P&L: ₹' + context.parsed.y.toLocaleString('en-IN', {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error initializing charts:', error);
+        }
+    }
+    
+    // Populate symbol performance table
+    function populateSymbolPerformance() {
+        try {
+            const symbolStats = {};
+            
+            tradesData.forEach(trade => {
+                const symbol = trade.symbol;
+                if (!symbol || symbol === 'N/A') return;
+                
+                if (!symbolStats[symbol]) {
+                    symbolStats[symbol] = {
+                        totalTrades: 0,
+                        winningTrades: 0,
+                        totalPnl: 0
+                    };
+                }
+                
+                if (trade.pnl !== null && trade.pnl !== undefined && !isNaN(trade.pnl)) {
+                    symbolStats[symbol].totalTrades++;
+                    symbolStats[symbol].totalPnl += trade.pnl;
+                    
+                    if (trade.pnl > 0) {
+                        symbolStats[symbol].winningTrades++;
+                    }
+                }
+            });
+            
+            const tableBody = document.getElementById('symbolPerformanceTable');
+            if (tableBody) {
+                tableBody.innerHTML = '';
+                
+                const sortedSymbols = Object.entries(symbolStats)
+                    .sort(([,a], [,b]) => b.totalPnl - a.totalPnl);
+                
+                sortedSymbols.forEach(([symbol, stats]) => {
+                    if (stats.totalTrades > 0) {
+                        const winRate = (stats.winningTrades / stats.totalTrades) * 100;
+                        const avgPnl = stats.totalPnl / stats.totalTrades;
+                        
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="fw-bold">${symbol}</td>
+                            <td>${stats.totalTrades}</td>
+                            <td>${stats.winningTrades}</td>
+                            <td>
+                                <span class="${winRate >= 60 ? 'text-success' : winRate >= 40 ? 'text-warning' : 'text-danger'}">
+                                    ${winRate.toFixed(1)}%
+                                </span>
+                            </td>
+                            <td class="${stats.totalPnl >= 0 ? 'text-success' : 'text-danger'}">
+                                ${stats.totalPnl >= 0 ? '+' : ''}₹${stats.totalPnl.toFixed(2)}
+                            </td>
+                            <td class="${avgPnl >= 0 ? 'text-success' : 'text-danger'}">
+                                ₹${avgPnl.toFixed(2)}
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    }
+                });
+                
+                if (sortedSymbols.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="6" class="text-center text-muted">No symbol data available</td>';
+                    tableBody.appendChild(row);
+                }
+            }
+        } catch (error) {
+            console.error('Error populating symbol performance:', error);
+        }
+    }
+</script>
+{% endblock %}
