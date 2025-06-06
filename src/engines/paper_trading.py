@@ -13,49 +13,43 @@ from config.settings import Config
 logger = logging.getLogger(__name__)
 
 class PaperTradingEngine:
-    def __init__(self, data_fetcher=None, signal_generator=None, initial_capital=None):
-        """Enhanced constructor with backward compatibility"""
-        if data_fetcher is None:
-            from types import SimpleNamespace
-            self.data_fetcher = SimpleNamespace()
-            self.data_fetcher.get_current_price = lambda symbol: None
-            self.data_fetcher.get_multiple_stocks_data = lambda symbols, days: {}
-            self.data_fetcher.is_market_open = lambda: True
-            logger.warning("No data_fetcher provided, using fallback methods")
-        else:
-            self.data_fetcher = data_fetcher
+    def __init__(self, data_fetcher=None, signal_generator=None, initial_capital=None, config=None):
+        """Enhanced constructor - FIXED VERSION"""
         
-        if signal_generator is None:
-            from types import SimpleNamespace
-            self.signal_generator = SimpleNamespace()
-            self.signal_generator.generate_signals = lambda data: []
-            logger.warning("No signal_generator provided, using mock")
-        else:
-            self.signal_generator = signal_generator
-        
-        if initial_capital is not None:
-            initial_cash = initial_capital
+        # CRITICAL FIX: Set up configuration FIRST
+        if config is not None:
+            self.config = config
         else:
             try:
+                from config.settings import Config
                 self.config = Config()
-                initial_cash = self.config.INITIAL_CAPITAL
-            except:
-                initial_cash = 100000
+            except Exception as e:
+                logger.warning(f"Could not load Config: {e}")
                 from types import SimpleNamespace
                 self.config = SimpleNamespace()
-                self.config.INITIAL_CAPITAL = initial_cash
+                self.config.INITIAL_CAPITAL = 100000
                 self.config.RISK_PER_TRADE = 2.0
                 self.config.COMMISSION = 0.1
-                self.config.MAX_POSITIONS = 10
-                self.config.WATCHLIST = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK']
+                self.config.MAX_POSITIONS = 5
+                self.config.WATCHLIST = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK']
         
-        self.portfolio = PaperPortfolio(initial_cash)
+        # Set initial capital
+        if initial_capital is not None:
+            self.initial_capital = initial_capital
+            self.config.INITIAL_CAPITAL = initial_capital
+        else:
+            self.initial_capital = getattr(self.config, 'INITIAL_CAPITAL', 100000)
+        
+        self.data_fetcher = data_fetcher
+        self.signal_generator = signal_generator
+
+        self.portfolio = PaperPortfolio(self.initial_capital)
         self.db_path = 'data/paper_trading.db'
         import os
         os.makedirs('data', exist_ok=True)
         self.init_database()
-        logger.info(f"Enhanced Paper Trading Engine initialized with Rs.{initial_cash:,.2f}")
-        print(f"✅ Enhanced Paper Trading Engine initialized with Rs.{initial_cash:,.2f}")
+        logger.info(f"Enhanced Paper Trading Engine initialized with Rs.{self.initial_capital:,.2f}")
+        print(f"✅ Enhanced Paper Trading Engine initialized with Rs.{self.initial_capital:,.2f}")
 
     def get_real_time_price(self, symbol):
         """Get real-time price from Yahoo Finance as fallback"""
@@ -420,50 +414,80 @@ class PaperTradingEngine:
             return False
 
     def get_portfolio_status(self):
-        """Get current portfolio status with real-time values"""
+        """Get current portfolio status with real-time values - FIXED VERSION"""
         try:
+            # CRITICAL FIX: Ensure config exists
+            if not hasattr(self, 'config') or self.config is None:
+                try:
+                    from config.settings import Config
+                    self.config = Config()
+                except:
+                    from types import SimpleNamespace
+                    self.config = SimpleNamespace()
+                    self.config.INITIAL_CAPITAL = getattr(self, 'initial_capital', 100000)
+            
+            # Ensure required config attributes exist
+            if not hasattr(self.config, 'INITIAL_CAPITAL'):
+                self.config.INITIAL_CAPITAL = getattr(self, 'initial_capital', 100000)
+
+            # Update positions if possible
             try:
                 self._update_portfolio_positions()
             except Exception as e:
-                logger.warning(f"Could not update portfolio positions: {e}")
-            total_pnl = self.portfolio.total_value - self.config.INITIAL_CAPITAL
+                logger.debug(f"Could not update portfolio positions: {e}")
+
+            # Calculate metrics safely
+            initial_capital = self.config.INITIAL_CAPITAL
+            total_pnl = self.portfolio.total_value - initial_capital
             daily_pnl = self._get_daily_pnl()
+            
             return {
                 'total_value': round(self.portfolio.total_value, 2),
                 'cash': round(self.portfolio.cash, 2),
                 'invested': round(self.portfolio.position_value, 2),
                 'total_pnl': round(total_pnl, 2),
-                'day_pnl': round(daily_pnl, 2),
-                'positions': len(self.portfolio.positions),
-                'return_pct': round((total_pnl / self.config.INITIAL_CAPITAL) * 100, 2),
-                'target_progress': round((daily_pnl / 3000) * 100, 1)
+                'daily_pnl': round(daily_pnl, 2),
+                'positions_count': len(self.portfolio.positions),  # FIXED: was 'positions'
+                'return_pct': round((total_pnl / initial_capital) * 100, 2) if initial_capital > 0 else 0,
+                'target_progress': round((daily_pnl / 3000) * 100, 1) if daily_pnl != 0 else 0
             }
+            
         except Exception as e:
             logger.error(f"Portfolio status error: {e}")
+            # Return safe fallback values
             return {
-                'total_value': self.config.INITIAL_CAPITAL,
-                'cash': self.config.INITIAL_CAPITAL,
+                'total_value': 100000.0,
+                'cash': 100000.0,
                 'invested': 0.0,
                 'total_pnl': 0.0,
-                'day_pnl': 0.0,
-                'positions': 0,
+                'daily_pnl': 0.0,
+                'positions_count': 0,  # FIXED: was 'positions'
                 'return_pct': 0.0,
                 'target_progress': 0.0
             }
 
     def _get_daily_pnl(self):
-        """Calculate today's P&L from trades"""
+        """Calculate today's P&L from trades - FIXED VERSION"""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
+            
+            # Get today's date range
             today = datetime.now().date()
+            today_str = today.strftime('%Y-%m-%d')
+            tomorrow_str = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            # Use date range instead of DATE() function for better compatibility
             cursor.execute('''
                 SELECT SUM(pnl) FROM paper_trades 
-                WHERE DATE(timestamp) = DATE(?)
-            ''', (today,))
+                WHERE timestamp >= ? AND timestamp < ?
+            ''', (today_str, tomorrow_str))
+            
             result = cursor.fetchone()
             conn.close()
-            return result[0] if result and result[0] else 0.0
+            
+            return result[0] if result and result[0] is not None else 0.0
+            
         except Exception as e:
             logger.error(f"Error calculating daily P&L: {e}")
             return 0.0

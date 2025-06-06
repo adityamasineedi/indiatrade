@@ -385,3 +385,6 @@ python main.py
 **Made with ❤️ for Indian Stock Market Traders**
 
 *Target: ₹3,000/day | Strategy: Technical Analysis + Market Regime | Mode: Paper Trading*
+
+.venv\Scripts\activate
+pip install -r requirements.txt

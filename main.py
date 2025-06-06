@@ -6,12 +6,12 @@ import os
 import sys
 import json
 import sqlite3
-from datetime import datetime, timedelta
-from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
-import pandas as pd
 import threading
 import time
 import schedule
+from datetime import datetime, timedelta
+from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
+import pandas as pd
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -47,11 +47,13 @@ try:
     paper_trading_engine = PaperTradingEngine(
         data_fetcher=data_fetcher,
         signal_generator=signal_generator,
-        initial_capital=config.INITIAL_CAPITAL
+        initial_capital=config.INITIAL_CAPITAL,
+        config=config  # <-- Add this argument
     )
+    print(f"✅ Paper Trading Engine initialized with Rs.{config.INITIAL_CAPITAL:,.2f}")
 except Exception as e:
     print(f"❌ Paper Trading Engine initialization failed: {e}")
-    paper_trading_engine = PaperTradingEngine()
+    paper_trading_engine = PaperTradingEngine(config=config)
 
 backtest_engine = BacktestEngine(
     data_fetcher,
@@ -59,73 +61,38 @@ backtest_engine = BacktestEngine(
     signal_generator
 )
 
-# Telegram bot integration (optional)
+# Initialize Telegram bot (optional)
+telegram_bot = None
 try:
     from src.utils.telegram_bot import TelegramBot
-    TELEGRAM_AVAILABLE = True
-except ImportError:
-    TELEGRAM_AVAILABLE = False
-    print("📱 Telegram bot not available (optional)")
-
-# Initialize Telegram bot
-if TELEGRAM_AVAILABLE:
-    try:
-        telegram_bot = TelegramBot()
-        print("📱 Telegram bot initialized")
-    except Exception as e:
-        print(f"⚠️ Telegram bot initialization failed: {e}")
-        telegram_bot = None
-else:
-    telegram_bot = None
-    print("📱 Telegram bot disabled (not critical)")
+    telegram_bot = TelegramBot()
+    print("📱 Telegram bot initialized")
+except Exception as e:
+    print(f"⚠️ Telegram bot initialization failed: {e}")
 
 # Validate configuration
-config.validate_config()
+try:
+    config.validate_config()
+    print("✅ Configuration validated")
+except Exception as e:
+    print(f"⚠️ Configuration validation failed: {e}")
 
 # Global state
 current_signals = []
 current_regime = {}
 portfolio_status = {}
 system_status = {
-    'running': False,
-    'last_update': None,
+    'running': True,
+    'last_update': datetime.now(),
     'errors': 0,
     'trades_today': 0
 }
 
-def initialize_components():
-    """Initialize all trading system components"""
-    global data_fetcher, technical_indicators, signal_generator
-    global market_regime_detector, backtest_engine, paper_trading_engine, telegram_bot
-    
-    try:
-        system_logger.log_system_startup("Initializing trading system components")
-        
-        # Initialize components
-        data_fetcher = DataFetcher()
-        technical_indicators = TechnicalIndicators()
-        signal_generator = SignalGenerator(technical_indicators, None)  # Will set regime detector later
-        market_regime_detector = MarketRegimeDetector(data_fetcher)
-        
-        # Set regime detector in signal generator
-        signal_generator.regime_detector = market_regime_detector
-        
-        # Initialize engines
-        backtest_engine = BacktestEngine(data_fetcher, technical_indicators, signal_generator)
-        paper_trading_engine = PaperTradingEngine(data_fetcher, signal_generator)
-        
-        # Initialize Telegram bot
-        telegram_bot = TelegramBot()
-        
-        # Validate configuration
-        config.validate_config()
-        
-        system_logger.log_system_startup("All components initialized successfully")
-        return True
-        
-    except Exception as e:
-        error_logger.log_exception("component_initialization", e)
-        return False
+# Initialize Flask app
+app = Flask(__name__)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'indian-trading-system-secret-key')
+
+# ==================== UTILITY FUNCTIONS ====================
 
 def update_system_data():
     """Update all system data (signals, regime, portfolio)"""
@@ -150,211 +117,212 @@ def update_system_data():
         error_logger.log_exception("system_data_update", e)
         system_status['errors'] += 1
 
-def run_trading_session():
-    """Run a complete trading session"""
+def run_automated_trading_session():
+    """Run automated trading session during market hours"""
     try:
-        system_logger.logger.info("Starting trading session")
+        now = datetime.now()
         
-        # Update system data first
+        # Check if market is open
+        if now.weekday() >= 5:  # Weekend
+            return {'status': 'market_closed', 'reason': 'weekend'}
+        
+        market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
+        market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+        
+        if not (market_open <= now <= market_close):
+            return {'status': 'market_closed', 'reason': 'outside_hours'}
+        
+        print("🚀 Starting automated trading session")
+        
+        # Update system data
         update_system_data()
         
-        # Run paper trading
-        session_result = paper_trading_engine.start_paper_trading()
+        # Get current market regime
+        regime = market_regime_detector.detect_current_regime()
         
-        # Update signals
-        global current_signals
-        watchlist = config.WATCHLIST[:10]  # Use first 10 for performance
+        # Get watchlist stocks
+        watchlist = config.WATCHLIST[:10]  # Trade top 10 stocks
+        
+        # Fetch current market data
         stocks_data = data_fetcher.get_multiple_stocks_data(watchlist, days=50)
         
-        if stocks_data:
-            current_signals = signal_generator.generate_signals(stocks_data, current_regime)
-            
-            # Send telegram alerts for new signals
-            for signal in current_signals:
-                if signal.get('confidence', 0) >= 70:  # Only high confidence signals
-                    try:
-                        telegram_bot.send_message_sync(f"🚀 Trading Signal: {signal['symbol']} {signal['action']} at ₹{signal['price']:.2f}")
-                    except:
-                        pass  # Don't let telegram errors stop trading
+        if not stocks_data:
+            return {'status': 'error', 'message': 'No stock data available'}
         
-        system_status['trades_today'] += session_result.get('trades_executed', 0)
+        # Generate trading signals
+        signals = signal_generator.generate_signals(stocks_data, regime)
         
-        system_logger.logger.info(f"Trading session completed: {session_result}")
+        if not signals:
+            return {'status': 'success', 'message': 'No signals generated', 'signals': 0, 'trades': 0}
+        
+        # Execute high-confidence signals
+        executed_trades = 0
+        for signal in signals:
+            try:
+                confidence = signal.get('confidence', 0)
+                
+                if confidence >= 70:
+                    success = paper_trading_engine.execute_trade(signal)
+                    
+                    if success:
+                        executed_trades += 1
+                        
+                        # Send Telegram alert for executed trades
+                        try:
+                            if telegram_bot:
+                                telegram_bot.send_message_sync(
+                                    f"🚀 Trade Executed: {signal['action']} {signal['symbol']} @ Rs.{signal['price']:.2f}"
+                                )
+                        except:
+                            pass  # Don't let telegram errors stop trading
+                        
+            except Exception as e:
+                print(f"❌ Trade execution error: {e}")
+                continue
+        
+        # Update global state
+        global current_signals
+        current_signals = signals
+        
+        # Update system status
+        system_status.update({
+            'last_trading_session': datetime.now(),
+            'signals_generated': len(signals),
+            'trades_executed': executed_trades
+        })
+        
+        return {
+            'status': 'success',
+            'signals_generated': len(signals),
+            'trades_executed': executed_trades,
+            'portfolio_value': portfolio_status.get('total_value', 0)
+        }
         
     except Exception as e:
-        error_logger.log_exception("trading_session", e)
-        system_status['errors'] += 1
+        error_logger.log_exception("automated_trading_session", e)
+        return {'status': 'error', 'message': str(e)}
 
-# Initialize Flask app
-app = Flask(__name__)
+def setup_automated_trading():
+    """Setup automated trading schedule"""
+    try:
+        schedule.clear()
+        
+        # Schedule trading sessions every 30 minutes during market hours
+        market_times = ["09:20", "09:45", "10:15", "10:45", "11:15", "11:45", 
+                       "12:15", "12:45", "13:15", "13:45", "14:15", "14:45", "15:15"]
+        
+        for time_str in market_times:
+            schedule.every().day.at(time_str).do(run_automated_trading_session)
+        
+        # Schedule system updates every 5 minutes during market hours
+        for hour in range(9, 16):
+            for minute in [0, 15, 30, 45]:
+                if hour == 9 and minute < 15:
+                    continue
+                if hour == 15 and minute > 30:
+                    continue
+                
+                time_str = f"{hour:02d}:{minute:02d}"
+                schedule.every().day.at(time_str).do(update_system_data)
+        
+        print("📅 Automated trading schedule configured")
+        return True
+        
+    except Exception as e:
+        error_logger.log_exception("trading_schedule_setup", e)
+        return False
+
+# ==================== FLASK ROUTES ====================
 
 @app.route('/')
+def home():
+    """Home route - redirect to dashboard"""
+    return redirect(url_for('dashboard'))
+
 @app.route('/dashboard')
 def dashboard():
     """Dashboard with portfolio overview and trading signals"""
     try:
-        # Initialize portfolio data with safe defaults
+        # Get portfolio data with safe defaults
         portfolio = {
-            'total_value': 100000.0,  # Starting capital
+            'total_value': 100000.0,
             'total_pnl': 0.0,
             'daily_pnl': 0.0,
             'cash': 100000.0,
             'invested': 0.0,
-            'positions': [],
-            'total_trades': 0,
-            'winning_trades': 0,
-            'losing_trades': 0
+            'positions_count': 0,
+            'return_pct': 0.0
         }
         
         # Try to get real portfolio data
-        try:
-            if paper_trading_engine:
+        if paper_trading_engine:
+            try:
                 real_portfolio = paper_trading_engine.get_portfolio_status()
                 if real_portfolio:
                     portfolio.update(real_portfolio)
-                    print(f"✅ Real portfolio data loaded: Rs.{portfolio['total_value']:,.2f}")
-        except Exception as e:
-            print(f"⚠️ Could not fetch real portfolio data: {e}")
-        
-        # Calculate win rate
-        win_rate = 0.0
-        if portfolio['total_trades'] > 0:
-            win_rate = (portfolio['winning_trades'] / portfolio['total_trades']) * 100
+            except Exception as e:
+                print(f"⚠️ Could not fetch portfolio data: {e}")
         
         # Daily target calculations
-        daily_target = 3000.0  # ₹3,000 target
-        target_progress = 0.0
-        if daily_target > 0:
-            target_progress = max(0, min(100, (portfolio['daily_pnl'] / daily_target) * 100))
+        daily_target = 3000.0
+        target_progress = max(0, min(100, (portfolio['daily_pnl'] / daily_target) * 100))
         
-        # Market data with safe defaults
-        market_data = {
-            'nifty_price': 19500.0,
-            'nifty_change': 0.0,
-            'nifty_change_percent': 0.0,
-            'market_regime': 'Sideways',
-            'regime_confidence': 75.0
-        }
-        
-        # Try to get real market data
-        try:
-            if current_regime:
-                market_data.update({
-                    'market_regime': current_regime.get('regime', 'Sideways'),
-                    'regime_confidence': current_regime.get('confidence', 75.0)
-                })
-        except Exception as e:
-            print(f"⚠️ Could not fetch market regime: {e}")
-        
-        # Recent signals with safe defaults
-        recent_signals = [
-            {
-                'symbol': 'RELIANCE',
-                'signal': 'BUY',
-                'price': 2450.0,
-                'strength': 85,
-                'timestamp': '10:30 AM'
-            },
-            {
-                'symbol': 'TCS',
-                'signal': 'SELL',
-                'price': 3680.0,
-                'strength': 78,
-                'timestamp': '10:25 AM'
+        # Market regime data
+        regime = current_regime if current_regime else {
+            'regime': 'sideways',
+            'confidence': 50.0,
+            'indicators': {
+                'market_breadth': 50.0,
+                'average_rsi': 50.0,
+                'volatility': 2.0,
+                'momentum': 0.0
             }
-        ]
-        
-        # Try to get real signals
-        try:
-            if current_signals and len(current_signals) > 0:
-                recent_signals = current_signals[-10:]  # Last 10 signals
-        except Exception as e:
-            print(f"⚠️ Could not fetch recent signals: {e}")
-        
-        # Performance metrics
-        performance_metrics = {
-            'sharpe_ratio': 1.2,
-            'max_drawdown': -5.5,
-            'profit_factor': 1.8,
-            'total_return': 2.5
         }
         
         # Market status
-        from datetime import datetime
         now = datetime.now()
         is_weekend = now.weekday() >= 5
         market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
         market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
         is_market_hours = market_open <= now <= market_close
         
-        if is_weekend:
-            market_status = "CLOSED (Weekend)"
-        elif is_market_hours:
-            market_status = "OPEN"
-        else:
-            market_status = "CLOSED"
-
+        market_status = {
+            'is_open': is_market_hours and not is_weekend
+        }
+        
+        # Recent signals
+        signals = current_signals[-10:] if current_signals else []
+        
         return render_template(
             'dashboard.html',
             portfolio=portfolio,
             daily_pnl=portfolio['daily_pnl'],
-            total_pnl=portfolio['total_pnl'],
-            target_progress=target_progress,
-            daily_target=daily_target,
-            market_data=market_data,
-            recent_signals=recent_signals,
-            performance_metrics=performance_metrics,
-            win_rate=win_rate,
-            system_status=system_status,
-            regime=current_regime if current_regime else {},
+            regime=regime,
+            signals=signals,
             market_status=market_status,
-            # Pass both min and max functions to template
+            trade_count=system_status.get('trades_today', 0),
+            system_status=system_status,
+            # Template functions
             min=min,
             max=max,
-            # Also pass other useful functions
             len=len,
             abs=abs,
-            round=round,
-            page_title="Trading Dashboard"
+            round=round
         )
-                             
+        
     except Exception as e:
-        # Provide safe fallback data even for errors
-        error_portfolio = {
-            'total_value': 100000.0,
-            'total_pnl': 0.0,
-            'daily_pnl': 0.0,
-            'cash': 100000.0,
-            'invested': 0.0,
-            'positions': [],
-            'total_trades': 0,
-            'winning_trades': 0,
-            'losing_trades': 0
-        }
-        
         error_logger.log_exception("dashboard_error", e)
-        
         return render_template(
             'dashboard.html',
-            portfolio=error_portfolio,
-            daily_pnl=error_portfolio['daily_pnl'],
-            total_pnl=error_portfolio['total_pnl'],
-            target_progress=0.0,
-            daily_target=3000.0,
-            market_data={'market_regime': 'Unknown', 'regime_confidence': 0},
-            recent_signals=[],
-            performance_metrics={'sharpe_ratio': 0, 'max_drawdown': 0, 'profit_factor': 0, 'total_return': 0},
-            win_rate=0.0,
+            portfolio={'total_value': 100000, 'daily_pnl': 0, 'total_pnl': 0},
+            daily_pnl=0,
+            regime={'regime': 'Unknown'},
+            signals=[],
+            market_status={'is_open': False},
+            trade_count=0,
             system_status=system_status,
-            regime={},
-            market_status="ERROR",
-            min=min,
-            max=max,
-            len=len,
-            abs=abs,
-            round=round,
             error=f"Dashboard Error: {str(e)}",
-            page_title="Trading Dashboard - Error"
+            min=min, max=max, len=len, abs=abs, round=round
         )
 
 @app.route('/trades')
@@ -362,149 +330,120 @@ def trades():
     """Trades history page"""
     try:
         days = request.args.get('days', 30, type=int)
-        trade_history = paper_trading_engine.get_trade_history(days=days) if paper_trading_engine else []
+        trade_history = []
         
-        return render_template('trades.html', 
-                             trades=trade_history,
-                             days=days)
+        if paper_trading_engine:
+            try:
+                trade_history = paper_trading_engine.get_trade_history(days=days)
+            except Exception as e:
+                print(f"⚠️ Trade history error: {e}")
+        
+        return render_template('trades.html', trades=trade_history, days=days)
+        
     except Exception as e:
         error_logger.log_exception("trades_page", e)
         return render_template('trades.html', trades=[], error=str(e))
+
+# ==================== API ENDPOINTS ====================
 
 @app.route('/api/portfolio')
 def api_portfolio():
     """API endpoint for portfolio data"""
     try:
+        portfolio_data = {
+            'total_value': 100000.0,
+            'daily_pnl': 0.0,
+            'total_pnl': 0.0,
+            'cash': 100000.0,
+            'invested': 0.0,
+            'positions_count': 0,
+            'return_pct': 0.0,
+            'target_progress': 0.0
+        }
+        
         if paper_trading_engine:
-            portfolio_data = paper_trading_engine.get_portfolio_status()
-            
-            # Add calculated fields
-            daily_target = 3000.0
-            target_progress = 0.0
-            if daily_target > 0:
-                target_progress = max(0, min(100, (portfolio_data.get('daily_pnl', 0) / daily_target) * 100))
-            
-            portfolio_data.update({
-                'target_progress': target_progress,
-                'market_regime': current_regime.get('regime', 'Unknown') if current_regime else 'Unknown'
-            })
-            
-            return jsonify(portfolio_data)
-        else:
-            # Fallback data
-            portfolio_data = {
-                'total_value': 100000.0,
-                'daily_pnl': 0.0,
-                'target_progress': 0.0,
-                'positions_count': 0,
-                'market_regime': 'Unknown'
-            }
-            return jsonify(portfolio_data)
+            try:
+                real_data = paper_trading_engine.get_portfolio_status()
+                if real_data:
+                    portfolio_data.update(real_data)
+                    # Calculate target progress
+                    daily_target = 3000.0
+                    portfolio_data['target_progress'] = max(0, min(100, 
+                        (portfolio_data['daily_pnl'] / daily_target) * 100))
+            except Exception as e:
+                print(f"Portfolio API error: {e}")
+        
+        return jsonify(portfolio_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/signals')
 def api_signals():
-    """API endpoint for recent trading signals"""
+    """API endpoint for trading signals"""
     try:
-        if current_signals and len(current_signals) > 0:
-            # Format signals for API response
-            signals_data = []
-            for signal in current_signals[-10:]:  # Last 10 signals
+        signals_data = []
+        
+        if current_signals:
+            for signal in current_signals[-10:]:
                 signals_data.append({
                     'symbol': signal.get('symbol', 'UNKNOWN'),
-                    'signal': signal.get('action', 'UNKNOWN'),
+                    'action': signal.get('action', 'UNKNOWN'),
                     'price': signal.get('price', 0),
-                    'strength': signal.get('confidence', 0),
-                    'timestamp': signal.get('timestamp', 'Unknown')
+                    'confidence': signal.get('confidence', 0),
+                    'timestamp': signal.get('timestamp', datetime.now()).isoformat() if signal.get('timestamp') else datetime.now().isoformat(),
+                    'reasons': signal.get('reasons', [])
                 })
-            return jsonify(signals_data)
-        else:
-            # Default signals
-            signals_data = [
-                {
-                    'symbol': 'RELIANCE',
-                    'signal': 'BUY',
-                    'price': 2450.0,
-                    'strength': 85,
-                    'timestamp': '10:30 AM'
-                }
-            ]
-            return jsonify(signals_data)
+        
+        return jsonify(signals_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/test_dashboard')
-def test_dashboard():
-    """Test dashboard with mock data"""
-    try:
-        print("🧪 Testing dashboard with mock data...")
-        
-        # Test portfolio data
-        test_portfolio = paper_trading_engine.get_portfolio_status() if paper_trading_engine else {
-            'total_value': 102500.0,
-            'cash': 85000.0,
-            'invested': 17500.0,
-            'daily_pnl': 1250.0,
-            'total_pnl': 2500.0,
-            'positions_count': 3,
-            'return_pct': 2.5
-        }
-        
-        print(f"✅ Portfolio loaded: Rs.{test_portfolio['total_value']:,.2f}")
-        
-        return jsonify({
-            'status': 'Dashboard test successful',
-            'portfolio': test_portfolio,
-            'template_functions': ['min', 'max', 'len', 'abs', 'round'],
-            'market_status': 'TESTING'
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Dashboard test failed: {str(e)}'}), 500
 
 @app.route('/api/regime')
 def api_regime():
     """API endpoint for market regime"""
     try:
-        return jsonify(current_regime)
+        regime_data = {
+            'regime': 'sideways',
+            'confidence': 50.0,
+            'strength': 'moderate',
+            'trend_direction': 'neutral',
+            'indicators': {
+                'market_breadth': 50.0,
+                'average_rsi': 50.0,
+                'volatility': 2.0,
+                'momentum': 0.0
+            }
+        }
+        
+        if current_regime:
+            regime_data.update(current_regime)
+        
+        return jsonify(regime_data)
     except Exception as e:
-        return jsonify({'error': str(e)})
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/system_status')
 def api_system_status():
     """API endpoint for system status"""
     try:
-        return jsonify(system_status)
+        now = datetime.now()
+        is_weekend = now.weekday() >= 5
+        market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
+        market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
+        is_market_hours = market_open <= now <= market_close
+        
+        status = {
+            'running': True,
+            'market_open': is_market_hours and not is_weekend,
+            'last_update': system_status.get('last_update', datetime.now()).isoformat(),
+            'errors': system_status.get('errors', 0),
+            'trades_today': system_status.get('trades_today', 0),
+            'signals_generated': system_status.get('signals_generated', 0)
+        }
+        
+        return jsonify(status)
     except Exception as e:
-        return jsonify({'error': str(e)})
-
-@app.route('/api/run_backtest', methods=['POST'])
-def api_run_backtest():
-    """API endpoint to run backtest"""
-    try:
-        data = request.get_json()
-        symbols = data.get('symbols', config.WATCHLIST[:5])
-        days = data.get('days', 30)
-        
-        # Run backtest
-        results = backtest_engine.run_backtest(symbols, days=days)
-        
-        # Send results to Telegram
-        try:
-            telegram_bot.send_message_sync(
-                f"📊 Backtest completed: {results['summary']['total_return_pct']:.2f}% return, "
-                f"{results['summary']['win_rate']:.1f}% win rate"
-            )
-        except:
-            pass
-        
-        return jsonify(results)
-        
-    except Exception as e:
-        error_logger.log_exception("backtest_api", e)
-        return jsonify({'error': str(e)})
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/update_system', methods=['POST'])
 def api_update_system():
@@ -513,25 +452,53 @@ def api_update_system():
         update_system_data()
         return jsonify({'status': 'success', 'message': 'System updated successfully'})
     except Exception as e:
-        error_logger.log_exception("manual_update", e)
         return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/api/run_trading_session', methods=['POST'])
 def api_run_trading_session():
     """API endpoint to manually run trading session"""
     try:
-        run_trading_session()
-        return jsonify({'status': 'success', 'message': 'Trading session completed'})
+        result = run_automated_trading_session()
+        return jsonify(result)
     except Exception as e:
-        error_logger.log_exception("manual_trading_session", e)
         return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/run_backtest', methods=['POST'])
+def api_run_backtest():
+    """API endpoint to run backtest"""
+    try:
+        data = request.get_json() or {}
+        symbols = data.get('symbols', config.WATCHLIST[:5])
+        days = data.get('days', 30)
+        
+        results = backtest_engine.run_backtest(symbols, days=days)
+        
+        # Send results to Telegram
+        if telegram_bot and results.get('summary'):
+            try:
+                summary = results['summary']
+                telegram_bot.send_message_sync(
+                    f"📊 Backtest completed: {summary['total_return_pct']:.2f}% return, "
+                    f"{summary['win_rate']:.1f}% win rate"
+                )
+            except Exception as e:
+                print(f"Telegram send failed: {e}")
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        error_logger.log_exception("backtest_api", e)
+        return jsonify({'error': str(e)})
 
 @app.route('/api/test_telegram', methods=['POST'])
 def api_test_telegram():
     """API endpoint to test Telegram connection"""
     try:
-        success, message = telegram_bot.test_connection()
-        return jsonify({'success': success, 'message': message})
+        if telegram_bot:
+            success, message = telegram_bot.test_connection()
+            return jsonify({'success': success, 'message': message})
+        else:
+            return jsonify({'success': False, 'message': 'Telegram bot not initialized'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -539,488 +506,93 @@ def api_test_telegram():
 def api_send_portfolio_update():
     """API endpoint to send portfolio update via Telegram"""
     try:
-        if portfolio_status:
-            success = telegram_bot.send_message_sync(
+        if telegram_bot and portfolio_status:
+            message = (
                 f"📊 Portfolio Update\n"
                 f"Total Value: ₹{portfolio_status.get('total_value', 0):,.2f}\n"
                 f"P&L: ₹{portfolio_status.get('total_pnl', 0):,.2f}\n"
                 f"Return: {portfolio_status.get('return_pct', 0):.2f}%"
             )
+            success = telegram_bot.send_message_sync(message)
             return jsonify({'success': success})
         else:
-            return jsonify({'success': False, 'message': 'No portfolio data available'})
+            return jsonify({'success': False, 'message': 'Telegram not available or no portfolio data'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/api/market_data/<symbol>')
-def api_market_data(symbol):
-    """API endpoint for individual stock data"""
-    try:
-        data = data_fetcher.get_stock_data(symbol, days=30)
-        if not data.empty:
-            # Add indicators
-            data = technical_indicators.add_all_indicators(data)
-            # Convert to JSON-serializable format
-            result = data.tail(30).to_dict('records')
-            return jsonify(result)
-        else:
-            return jsonify({'error': 'No data found'})
-    except Exception as e:
-        return jsonify({'error': str(e)})
+@app.route('/health')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'components': {
+            'data_fetcher': data_fetcher is not None,
+            'paper_trading': paper_trading_engine is not None,
+            'technical_indicators': technical_indicators is not None,
+            'signal_generator': signal_generator is not None,
+            'telegram_bot': telegram_bot is not None
+        },
+        'last_update': system_status.get('last_update', datetime.now()).isoformat()
+    })
 
-def run_automated_trading_session():
-    """Enhanced automated trading session"""
-    try:
-        system_logger.logger.info("🚀 Starting automated trading session")
-        
-        # Check if market is open
-        from datetime import datetime
-        now = datetime.now()
-        
-        # Market hours: 9:15 AM to 3:30 PM on weekdays
-        if now.weekday() >= 5:  # Weekend
-            system_logger.logger.info("⏰ Market closed - Weekend")
-            return
-        
-        market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
-        market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
-        
-        if not (market_open <= now <= market_close):
-            system_logger.logger.info("⏰ Market closed - Outside trading hours")
-            return
-        
-        system_logger.logger.info("✅ Market is open - Starting trading session")
-        
-        # Update system data
-        update_system_data()
-        
-        # Get current market regime
-        current_regime = market_regime_detector.detect_current_regime()
-        system_logger.logger.info(f"📊 Market regime: {current_regime.get('regime', 'unknown')} ({current_regime.get('confidence', 0):.1f}%)")
-        
-        # Get watchlist stocks
-        config = Config()
-        watchlist = config.WATCHLIST[:10]  # Trade top 10 stocks
-        
-        # Fetch current market data
-        stocks_data = data_fetcher.get_multiple_stocks_data(watchlist, days=50)
-        
-        if not stocks_data:
-            system_logger.logger.warning("⚠️ No stock data available")
-            return
-        
-        # Generate trading signals
-        signals = signal_generator.generate_signals(stocks_data, current_regime)
-        
-        if not signals:
-            system_logger.logger.info("📡 No trading signals generated")
-            return
-        
-        system_logger.logger.info(f"📡 Generated {len(signals)} trading signals")
-        
-        # Execute high-confidence signals
-        executed_trades = 0
-        for signal in signals:
-            try:
-                confidence = signal.get('confidence', 0)
-                
-                # Only execute signals with confidence > 70%
-                if confidence >= 70:
-                    success = paper_trading_engine.execute_trade(signal)
-                    
-                    if success:
-                        executed_trades += 1
-                        system_logger.logger.info(
-                            f"✅ Executed: {signal['action']} {signal['symbol']} "
-                            f"at ₹{signal['price']:.2f} (Confidence: {confidence:.1f}%)"
-                        )
-                        
-                        # Send Telegram alert for executed trades
-                        try:
-                            telegram_bot.send_signal_alert(signal)
-                        except:
-                            pass  # Don't let telegram errors stop trading
-                    
-                else:
-                    system_logger.logger.info(
-                        f"⏭️ Skipped: {signal['action']} {signal['symbol']} "
-                        f"(Confidence: {confidence:.1f}% < 70%)"
-                    )
-                    
-            except Exception as e:
-                system_logger.logger.error(f"❌ Trade execution error: {e}")
-                continue
-        
-        # Update portfolio status
-        portfolio_status = paper_trading_engine.get_portfolio_status()
-        
-        # Check daily P&L progress toward ₹3,000 goal
-        daily_pnl = portfolio_status.get('daily_pnl', 0)
-        daily_target = 3000.0
-        target_progress = (daily_pnl / daily_target) * 100 if daily_target > 0 else 0
-        
-        system_logger.logger.info(
-            f"💰 Portfolio: ₹{portfolio_status.get('total_value', 0):,.2f} "
-            f"(Daily P&L: ₹{daily_pnl:,.2f}, Target Progress: {target_progress:.1f}%)"
-        )
-        
-        # Update system status
-        system_status.update({
-            'last_trading_session': datetime.now(),
-            'signals_generated': len(signals),
-            'trades_executed': executed_trades,
-            'portfolio_value': portfolio_status.get('total_value', 0),
-            'daily_pnl': daily_pnl,
-            'target_progress': target_progress
-        })
-        
-        system_logger.logger.info(
-            f"🎯 Trading session completed: {executed_trades} trades executed from {len(signals)} signals"
-        )
-        
-        return {
-            'success': True,
-            'signals_generated': len(signals),
-            'trades_executed': executed_trades,
-            'portfolio_value': portfolio_status.get('total_value', 0),
-            'daily_pnl': daily_pnl
-        }
-        
-    except Exception as e:
-        error_logger.log_exception("automated_trading_session", e)
-        system_status['errors'] += 1
-        return {'success': False, 'error': str(e)}
+# ==================== ERROR HANDLERS ====================
 
-# --- Emoji-safe log fallback for Windows terminals ---
-def log_with_emoji_replacement(logger, level, message):
-    emoji_map = {
-        '🕐': '[CLOCK]', '🔄': '[REFRESH]', '📊': '[CHART]', '📈': '[TRENDING_UP]',
-        '🚀': '[ROCKET]', '✅': '[CHECK]', '❌': '[CROSS]', '⚠️': '[WARNING]',
-        '💰': '[MONEY]', '📱': '[PHONE]', '🎯': '[TARGET]', '⏰': '[ALARM]',
-        '🔗': '[LINK]', '📡': '[SATELLITE]', '⏭️': '[SKIP]'
-    }
-    for emoji, replacement in emoji_map.items():
-        message = message.replace(emoji, replacement)
-    getattr(logger, level)(message)
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({'error': 'Page not found'}), 404
 
+@app.errorhandler(500)
+def internal_error(error):
+    error_logger.log_exception("flask_500_error", error)
+    return jsonify({'error': 'Internal server error'}), 500
 
-def setup_automated_trading():
-    """Setup automated trading schedule"""
-    try:
-        # Clear any existing jobs
-        schedule.clear()
-        
-        # Schedule trading sessions during market hours
-        schedule.every().day.at("09:20").do(run_automated_trading_session)  # Market opens at 9:15
-        schedule.every().day.at("09:45").do(run_automated_trading_session)
-        schedule.every().day.at("10:15").do(run_automated_trading_session)
-        schedule.every().day.at("10:45").do(run_automated_trading_session)
-        schedule.every().day.at("11:15").do(run_automated_trading_session)
-        schedule.every().day.at("11:45").do(run_automated_trading_session)
-        schedule.every().day.at("12:15").do(run_automated_trading_session)
-        schedule.every().day.at("12:45").do(run_automated_trading_session)
-        schedule.every().day.at("13:15").do(run_automated_trading_session)
-        schedule.every().day.at("13:45").do(run_automated_trading_session)
-        schedule.every().day.at("14:15").do(run_automated_trading_session)
-        schedule.every().day.at("14:45").do(run_automated_trading_session)
-        schedule.every().day.at("15:15").do(run_automated_trading_session)  # Market closes at 15:30
-        
-        # Schedule system updates every 5 minutes during market hours
-        for hour in range(9, 16):  # 9 AM to 3 PM
-            for minute in [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]:
-                if hour == 9 and minute < 15:  # Skip before market open
-                    continue
-                if hour == 15 and minute > 30:  # Skip after market close
-                    continue
-                
-                time_str = f"{hour:02d}:{minute:02d}"
-                schedule.every().day.at(time_str).do(update_system_data)
-        
-        # Schedule daily summary at market close
-        # schedule.every().day.at("16:00").do(send_daily_summary)  # Temporarily disabled
-        
-        log_with_emoji_replacement(system_logger.logger, 'info', "🕐 Automated trading schedule configured")
-        log_with_emoji_replacement(system_logger.logger, 'info', "🔄 Trading sessions: Every 30 minutes during market hours")
-        log_with_emoji_replacement(system_logger.logger, 'info', "📊 Data updates: Every 5 minutes during market hours")
-        log_with_emoji_replacement(system_logger.logger, 'info', "📈 Daily summary: 4:00 PM after market close")
-        
-        return True
-        
-    except Exception as e:
-        error_logger.log_exception("trading_schedule_setup", e)
-        return False
+@app.errorhandler(Exception)
+def handle_error(e):
+    error_logger.log_exception("flask_error", e)
+    return jsonify({'error': str(e)}), 500
 
-def schedule_enhanced_trading_tasks():
-    """Schedule trading with Zerodha integration"""
-    try:
-        import schedule
-        schedule.clear()
-        schedule.every().day.at("09:20").do(run_enhanced_trading_session)
-        schedule.every().day.at("09:45").do(run_enhanced_trading_session)
-        schedule.every().day.at("10:15").do(run_enhanced_trading_session)
-        schedule.every().day.at("10:45").do(run_enhanced_trading_session)
-        schedule.every().day.at("11:15").do(run_enhanced_trading_session)
-        schedule.every().day.at("11:45").do(run_enhanced_trading_session)
-        schedule.every().day.at("12:15").do(run_enhanced_trading_session)
-        schedule.every().day.at("12:45").do(run_enhanced_trading_session)
-        schedule.every().day.at("13:15").do(run_enhanced_trading_session)
-        schedule.every().day.at("13:45").do(run_enhanced_trading_session)
-        schedule.every().day.at("14:15").do(run_enhanced_trading_session)
-        schedule.every().day.at("14:45").do(run_enhanced_trading_session)
-        schedule.every().day.at("15:15").do(run_enhanced_trading_session)
-        system_logger.logger.info("✅ Enhanced trading schedule configured with Zerodha integration")
-        return True
-    except Exception as e:
-        error_logger.log_exception("enhanced_schedule_setup", e)
-        return False
+# ==================== BACKGROUND SCHEDULER ====================
 
-@app.route('/api/run_trading', methods=['POST'])
-def api_run_trading():
-    """Manual trading session trigger"""
-    try:
-        result = run_automated_trading_session()
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/trading_status')
-def api_trading_status():
-    """Get current trading status"""
-    try:
-        from datetime import datetime
-        now = datetime.now()
-        
-        # Check if market is open
-        is_weekend = now.weekday() >= 5
-        market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
-        market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
-        is_market_hours = market_open <= now <= market_close
-        
-        status = {
-            'market_open': is_market_hours and not is_weekend,
-            'current_time': now.strftime('%H:%M:%S'),
-            'market_session': 'OPEN' if (is_market_hours and not is_weekend) else 'CLOSED',
-            'next_session': '09:20' if not is_market_hours else 'In Progress',
-            'auto_trading_enabled': True,
-            'last_session': system_status.get('last_trading_session'),
-            'signals_today': system_status.get('signals_generated', 0),
-            'trades_today': system_status.get('trades_executed', 0),
-            'daily_pnl': system_status.get('daily_pnl', 0),
-            'target_progress': system_status.get('target_progress', 0)
-        }
-        
-        return jsonify(status)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-def schedule_trading_tasks():
-    """Initialize all trading schedules"""
-    try:
-        setup_automated_trading()
-        system_logger.logger.info("All trading tasks scheduled successfully")
-        return True
-    except Exception as e:
-        error_logger.log_exception("task_scheduling", e)
-        return False
-
-def initialize_trading_engine():
-    """Initialize trading engine with Zerodha integration"""
-    try:
-        zerodha_enabled = os.getenv('ZERODHA_PAPER_TRADING', 'false').lower() == 'true'
-        if zerodha_enabled:
-            print("🚀 Initializing Zerodha Paper Trading Engine...")
-            trading_engine = ZerodhaTrading(paper_trading=True)
-            if trading_engine.connected:
-                print("✅ Zerodha integration active - Using real market data")
-                return trading_engine
-            else:
-                print("⚠️ Zerodha not connected - Check authentication")
-                print("🔧 Run setup_zerodha_auth() to configure")
-                return paper_trading_engine
-        else:
-            print("📊 Using internal paper trading simulation")
-            return paper_trading_engine
-    except Exception as e:
-        print(f"⚠️ Trading engine initialization error: {e}")
-        print("📊 Falling back to internal paper trading")
-        return paper_trading_engine
-
-# Initialize components on startup
-initialize_components()
-
-# Schedule trading tasks
-schedule_trading_tasks()
-
-# Background thread for running scheduled tasks
 def run_schedule():
+    """Background thread to run scheduled tasks"""
     while True:
         try:
             schedule.run_pending()
             time.sleep(1)
         except Exception as e:
             error_logger.log_exception("schedule_run", e)
+            time.sleep(5)  # Wait a bit before retrying
 
-# Start the schedule runner in a separate thread
+# ==================== INITIALIZATION ====================
+
+# Setup automated trading schedule
+setup_automated_trading()
+
+# Start the background scheduler
 scheduler_thread = threading.Thread(target=run_schedule, daemon=True)
 scheduler_thread.start()
+print("🔄 Background scheduler started")
 
-# Home route
-@app.route('/')
-def home():
-    return redirect(url_for('dashboard'))
+# Initial system data update
+update_system_data()
+print("📊 Initial system data loaded")
 
-# Error handler
-@app.errorhandler(Exception)
-def handle_error(e):
-    error_logger.log_exception("flask_error", e)
-    return jsonify({'error': str(e)}), 500
+# ==================== MAIN APPLICATION ====================
 
-# Health check route
-@app.route('/health')
-def health_check():
-    return jsonify({'status': 'healthy', 'last_update': system_status['last_update']})
-
-# Run the app
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
-def get_enhanced_stock_data(symbols, days=30):
-    """Get stock data from Zerodha or fallback to Yahoo Finance"""
-    stocks_data = {}
-    for symbol in symbols:
-        try:
-            if hasattr(trading_engine, 'connected') and trading_engine.connected:
-                zerodha_data = trading_engine.get_historical_data(symbol, days)
-                if zerodha_data is not None and not zerodha_data.empty:
-                    stocks_data[symbol] = zerodha_data
-                    print(f"✅ {symbol}: Zerodha data ({len(zerodha_data)} days)")
-                    continue
-            data = data_fetcher.get_stock_data(symbol, days)
-            if not data.empty:
-                stocks_data[symbol] = data
-                print(f"✅ {symbol}: Yahoo Finance data ({len(data)} days)")
-        except Exception as e:
-            print(f"❌ Data fetch error for {symbol}: {e}")
-            continue
-    return stocks_data
-
-def run_enhanced_trading_session():
-    """Enhanced trading session with Zerodha integration"""
-    try:
-        system_logger.logger.info("🚀 Starting enhanced trading session")
-        from datetime import datetime
-        now = datetime.now()
-        
-        if now.weekday() >= 5:
-            system_logger.logger.info("⏰ Market closed - Weekend")
-            return
-            
-        market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
-        market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
-        
-        if not (market_open <= now <= market_close):
-            system_logger.logger.info("⏰ Market closed - Outside trading hours")
-            return
-            
-        system_logger.logger.info("✅ Market is open - Starting enhanced trading session")
-        
-        current_regime = market_regime_detector.detect_current_regime()
-        system_logger.logger.info(f"📊 Market regime: {current_regime.get('regime', 'unknown')} ({current_regime.get('confidence', 0):.1f}%)")
-        
-        config = Config()
-        watchlist = config.WATCHLIST[:10]
-        stocks_data = get_enhanced_stock_data(watchlist, days=50)
-        
-        if not stocks_data:
-            system_logger.logger.warning("⚠️ No stock data available")
-            return
-            
-        signals = signal_generator.generate_signals(stocks_data, current_regime)
-        
-        if not signals:
-            system_logger.logger.info("📡 No trading signals generated")
-            return
-            
-        system_logger.logger.info(f"📡 Generated {len(signals)} trading signals")
-        
-        executed_trades = 0
-        for signal in signals:
-            try:
-                confidence = signal.get('confidence', 0)
-                if confidence >= 70:
-                    success = trading_engine.execute_trade(signal)
-                    if success:
-                        executed_trades += 1
-                        system_logger.logger.info(
-                            f"✅ Executed: {signal['action']} {signal['symbol']} "
-                            f"at ₹{signal['price']:.2f} (Confidence: {confidence:.1f}%)"
-                        )
-                        
-                        if hasattr(trading_engine, 'connected') and trading_engine.connected:
-                            system_logger.logger.info("📊 Trade executed with real Zerodha market price")
-                        
-                        try:
-                            telegram_bot.send_signal_alert(signal)
-                        except:
-                            pass
-            except Exception as e:
-                system_logger.logger.error(f"❌ Trade execution error: {e}")
-                continue
-                
-        portfolio_status = trading_engine.get_portfolio_status()
-        
-        if hasattr(trading_engine, 'connected') and trading_engine.connected:
-            system_logger.logger.info("🔗 Portfolio data from Zerodha API")
-        else:
-            system_logger.logger.info("📊 Portfolio data from internal simulation")
-            
-        daily_pnl = portfolio_status.get('daily_pnl', 0)
-        daily_target = 3000.0
-        target_progress = (daily_pnl / daily_target) * 100 if daily_target > 0 else 0
-        
-        system_logger.logger.info(
-            f"💰 Portfolio: ₹{portfolio_status.get('total_value', 0):,.2f} "
-            f"(Daily P&L: ₹{daily_pnl:,.2f}, Target Progress: {target_progress:.1f}%)"
-        )
-        
-        return {
-            'success': True,
-            'signals_generated': len(signals),
-            'trades_executed': executed_trades,
-            'portfolio_value': portfolio_status.get('total_value', 0),
-            'daily_pnl': daily_pnl,
-            'zerodha_connected': hasattr(trading_engine, 'connected') and trading_engine.connected
-        }
-        
-    except Exception as e:
-        error_logger.log_exception("enhanced_trading_session", e)
-        return {'success': False, 'error': str(e)}
-
-def send_daily_summary():
-    """Send daily trading summary"""
-    try:
-        portfolio = paper_trading_engine.get_portfolio_status()
-        daily_pnl = portfolio.get('day_pnl', 0)
-        total_value = portfolio.get('total_value', 0)
-        target_progress = (daily_pnl / 3000) * 100 if daily_pnl != 0 else 0
-
-        summary = f"Daily Summary: Portfolio Rs.{total_value:,.2f}, P&L Rs.{daily_pnl:+,.2f}, Target Progress: {target_progress:.1f}%"
-        print(f"[CHART] {summary}")
-        system_logger.logger.info(f"Daily Summary Generated: {summary}")
-
-        if telegram_bot:
-            try:
-                telegram_bot.send_message_sync(summary)
-            except Exception as e:
-                system_logger.logger.warning(f"Telegram send failed: {e}")
-        return True
-    except Exception as e:
-        print(f"Daily summary error: {e}")
-        return False
-
-
-# Usage example:
-# Instead of: system_logger.logger.info("🚀 Starting trading session")
-# Use: log_with_emoji_replacement(system_logger.logger, 'info', "🚀 Starting trading session")
-# Or: system_logger.logger.info("[ROCKET] Starting trading session")
+    print("🚀 Starting Indian Stock Trading System")
+    print(f"📊 Initial Capital: ₹{config.INITIAL_CAPITAL:,.2f}")
+    print(f"🎯 Daily Target: ₹{config.PROFIT_TARGET:,.2f}")
+    print(f"📈 Max Positions: {config.MAX_POSITIONS}")
+    print(f"⚡ Auto Trading: Enabled")
+    print(f"📱 Telegram: {'Enabled' if telegram_bot else 'Disabled'}")
+    print("🌐 Dashboard: http://localhost:5000")
+    
+    # Run Flask app
+    app.run(
+        debug=config.FLASK_DEBUG,
+        host=config.FLASK_HOST,
+        port=config.FLASK_PORT,
+        threaded=True
+    )

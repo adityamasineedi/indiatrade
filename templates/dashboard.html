@@ -4,27 +4,27 @@
 
 {% block content %}
 <div class="row mt-4">
-    <!-- Portfolio Overview -->
-    <div class="col-lg-3 col-md-6 mb-4">
+    <!-- Portfolio Overview Cards -->
+    <div class="col-lg-2 col-md-6 mb-4">
         <div class="card stat-card {% if portfolio.total_pnl >= 0 %}success{% else %}danger{% endif %}">
             <div class="card-body text-center">
                 <i class="fas fa-wallet fa-2x mb-3"></i>
-                <h3 class="mb-1">₹{{ portfolio.total_value | default(0) | round(2) }}</h3>
+                <h3 class="mb-1">₹{{ "%.2f"|format(portfolio.total_value or 0) }}</h3>
                 <p class="mb-0">Total Portfolio</p>
                 <small class="opacity-75">
-                    P&L: ₹{{ portfolio.total_pnl | default(0) | round(2) }} 
-                    ({{ portfolio.return_pct | default(0) | round(2) }}%)
+                    P&L: ₹{{ "%.2f"|format(portfolio.total_pnl or 0) }} 
+                    ({{ "%.2f"|format(portfolio.return_pct or 0) }}%)
                 </small>
             </div>
         </div>
     </div>
 
     <!-- Daily P&L -->
-    <div class="col-lg-3 col-md-6 mb-4">
+    <div class="col-lg-2 col-md-6 mb-4">
         <div class="card stat-card {% if daily_pnl >= 0 %}success{% else %}danger{% endif %}">
             <div class="card-body text-center">
                 <i class="fas fa-chart-line fa-2x mb-3"></i>
-                <h3 class="mb-1">₹{{ daily_pnl | default(0) | round(2) }}</h3>
+                <h3 class="mb-1">₹{{ "%.2f"|format(daily_pnl or 0) }}</h3>
                 <p class="mb-0">Today's P&L</p>
                 <small class="opacity-75">Target: ₹3,000</small>
             </div>
@@ -32,11 +32,11 @@
     </div>
 
     <!-- Active Positions -->
-    <div class="col-lg-3 col-md-6 mb-4">
+    <div class="col-lg-2 col-md-6 mb-4">
         <div class="card stat-card">
             <div class="card-body text-center">
                 <i class="fas fa-layer-group fa-2x mb-3"></i>
-                <h3 class="mb-1">{{ portfolio.positions_count | default(0) }}</h3>
+                <h3 class="mb-1">{{ portfolio.positions_count if portfolio.positions_count is not none else (portfolio.positions|length if portfolio.positions is defined else 0) }}</h3>
                 <p class="mb-0">Active Positions</p>
                 <small class="opacity-75">Max: 5 positions</small>
             </div>
@@ -44,13 +44,13 @@
     </div>
 
     <!-- Trades Today -->
-    <div class="col-lg-3 col-md-6 mb-4">
+    <div class="col-lg-2 col-md-4 mb-4">
         <div class="card stat-card warning">
             <div class="card-body text-center">
                 <i class="fas fa-exchange-alt fa-2x mb-3"></i>
-                <h3 class="mb-1">{{ trade_count | default(0) }}</h3>
+                <h3 class="mb-1">{{ system_status.trades_today or 0 }}</h3>
                 <p class="mb-0">Trades Today</p>
-                <small class="opacity-75">{{ system_status.trades_today | default(0) }} total</small>
+                <small class="opacity-75">{{ system_status.trades_today or 0 }} total</small>
             </div>
         </div>
     </div>
@@ -74,14 +74,14 @@
                             <span class="regime-indicator regime-{{ regime.regime or 'sideways' }}"></span>
                             <span class="fw-bold text-capitalize">{{ regime.regime or 'Unknown' }}</span>
                             <span class="badge badge-custom bg-primary ms-2">
-                                {{ "{:.0f}".format(regime.confidence or 0) }}%
+                                {{ "%.0f"|format(regime.confidence or 0) }}%
                             </span>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <h6>Market Status</h6>
                         <div class="mb-3">
-                            {% if market_status.is_open %}
+                            {% if market_status.market_open or market_status.is_open %}
                                 <span class="badge badge-custom bg-success">
                                     <i class="fas fa-play"></i> Market Open
                                 </span>
