@@ -1,0 +1,61 @@
+{
+  "_comment": "CRITICAL TRADING SAFETY CONFIGURATION",
+  "_warning": "MODIFYING THIS FILE CAN LEAD TO REAL MONEY LOSS",
+  "_instructions": "Only change these settings if you fully understand the risks",
+  
+  "trading_mode": "PAPER_ONLY",
+  "safety_level": "MAXIMUM",
+  
+  "safety_limits": {
+    "max_daily_loss": 1000.0,
+    "max_position_size": 10000.0,
+    "max_positions": 3,
+    "max_risk_per_trade": 2.0
+  },
+  
+  "safety_features": {
+    "require_manual_confirmation": true,
+    "paper_trading_enforced": true,
+    "zerodha_live_trading_disabled": true,
+    "emergency_stop_on_loss": true,
+    "audit_all_trades": true,
+    "safety_checks_enabled": true,
+    "real_money_trading_allowed": false
+  },
+  
+  "confirmation_codes": {
+    "_comment": "These codes are required for dangerous operations",
+    "enable_live_trading": "DANGER_REAL_MONEY_2024",
+    "disable_safety": "EMERGENCY_OVERRIDE_2024",
+    "emergency_stop": "STOP_ALL_TRADING_NOW"
+  },
+  
+  "risk_management": {
+    "stop_loss_percentage": 2.0,
+    "take_profit_percentage": 4.0,
+    "max_drawdown_percentage": 5.0,
+    "position_sizing_method": "fixed_risk"
+  },
+  
+  "monitoring": {
+    "log_all_decisions": true,
+    "alert_on_large_positions": true,
+    "alert_on_losses": true,
+    "daily_reports": true
+  },
+  
+  "environment_overrides": {
+    "_comment": "Environment variables can override these settings",
+    "respect_env_paper_only": true,
+    "respect_env_safety_mode": true
+  },
+  
+  "emergency_contacts": {
+    "_comment": "Contact information for emergency situations",
+    "developer_email": "your-email@example.com",
+    "telegram_admin_chat": "your_admin_chat_id"
+  },
+  
+  "last_modified": "2024-12-19",
+  "config_version": "1.0"
+}

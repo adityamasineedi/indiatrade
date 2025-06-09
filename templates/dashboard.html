@@ -3,28 +3,39 @@
 {% block title %}Dashboard - Indian Stock Trading System{% endblock %}
 
 {% block content %}
+<!-- Debug Info (Remove in production) -->
+{% if config.FLASK_DEBUG %}
+<div class="alert alert-info">
+    <strong>Debug Info:</strong>
+    Portfolio Keys: {{ portfolio.keys() | list if portfolio else 'None' }} |
+    Daily P&L: {{ daily_pnl if daily_pnl is defined else 'undefined' }} |
+    Regime: {{ regime.regime if regime else 'None' }} |
+    Signals Count: {{ signals|length if signals else 0 }}
+</div>
+{% endif %}
+
 <div class="row mt-4">
     <!-- Portfolio Overview Cards -->
-    <div class="col-lg-2 col-md-6 mb-4">
-        <div class="card stat-card {% if portfolio.total_pnl >= 0 %}success{% else %}danger{% endif %}">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card {% if portfolio and portfolio.get('total_pnl', 0) >= 0 %}success{% else %}danger{% endif %}">
             <div class="card-body text-center">
                 <i class="fas fa-wallet fa-2x mb-3"></i>
-                <h3 class="mb-1">₹{{ "%.2f"|format(portfolio.total_value or 0) }}</h3>
+                <h3 class="mb-1">₹{{ "{:,.2f}".format(portfolio.get('total_value', 0) if portfolio else 0) }}</h3>
                 <p class="mb-0">Total Portfolio</p>
                 <small class="opacity-75">
-                    P&L: ₹{{ "%.2f"|format(portfolio.total_pnl or 0) }} 
-                    ({{ "%.2f"|format(portfolio.return_pct or 0) }}%)
+                    P&L: ₹{{ "{:,.2f}".format(portfolio.get('total_pnl', 0) if portfolio else 0) }} 
+                    ({{ "{:.2f}".format(portfolio.get('return_pct', 0) if portfolio else 0) }}%)
                 </small>
             </div>
         </div>
     </div>
 
     <!-- Daily P&L -->
-    <div class="col-lg-2 col-md-6 mb-4">
-        <div class="card stat-card {% if daily_pnl >= 0 %}success{% else %}danger{% endif %}">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card {% if daily_pnl is defined and daily_pnl >= 0 %}success{% else %}danger{% endif %}">
             <div class="card-body text-center">
                 <i class="fas fa-chart-line fa-2x mb-3"></i>
-                <h3 class="mb-1">₹{{ "%.2f"|format(daily_pnl or 0) }}</h3>
+                <h3 class="mb-1">₹{{ "{:,.2f}".format(daily_pnl if daily_pnl is defined else 0) }}</h3>
                 <p class="mb-0">Today's P&L</p>
                 <small class="opacity-75">Target: ₹3,000</small>
             </div>
@@ -32,11 +43,11 @@
     </div>
 
     <!-- Active Positions -->
-    <div class="col-lg-2 col-md-6 mb-4">
+    <div class="col-lg-3 col-md-6 mb-4">
         <div class="card stat-card">
             <div class="card-body text-center">
                 <i class="fas fa-layer-group fa-2x mb-3"></i>
-                <h3 class="mb-1">{{ portfolio.positions_count if portfolio.positions_count is not none else (portfolio.positions|length if portfolio.positions is defined else 0) }}</h3>
+                <h3 class="mb-1">{{ portfolio.get('positions_count', 0) if portfolio else 0 }}</h3>
                 <p class="mb-0">Active Positions</p>
                 <small class="opacity-75">Max: 5 positions</small>
             </div>
@@ -44,13 +55,13 @@
     </div>
 
     <!-- Trades Today -->
-    <div class="col-lg-2 col-md-4 mb-4">
+    <div class="col-lg-3 col-md-6 mb-4">
         <div class="card stat-card warning">
             <div class="card-body text-center">
                 <i class="fas fa-exchange-alt fa-2x mb-3"></i>
-                <h3 class="mb-1">{{ system_status.trades_today or 0 }}</h3>
+                <h3 class="mb-1">{{ system_status.get('trades_today', 0) if system_status else 0 }}</h3>
                 <p class="mb-0">Trades Today</p>
-                <small class="opacity-75">{{ system_status.trades_today or 0 }} total</small>
+                <small class="opacity-75">{{ system_status.get('trades_today', 0) if system_status else 0 }} total</small>
             </div>
         </div>
     </div>
@@ -71,17 +82,17 @@
                     <div class="col-md-4">
                         <h6>Market Regime</h6>
                         <div class="d-flex align-items-center mb-3">
-                            <span class="regime-indicator regime-{{ regime.regime or 'sideways' }}"></span>
-                            <span class="fw-bold text-capitalize">{{ regime.regime or 'Unknown' }}</span>
+                            <span class="regime-indicator regime-{{ regime.get('regime', 'sideways') if regime else 'sideways' }}"></span>
+                            <span class="fw-bold text-capitalize">{{ regime.get('regime', 'Unknown') if regime else 'Unknown' }}</span>
                             <span class="badge badge-custom bg-primary ms-2">
-                                {{ "%.0f"|format(regime.confidence or 0) }}%
+                                {{ "{:.0f}".format(regime.get('confidence', 0) if regime else 0) }}%
                             </span>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <h6>Market Status</h6>
                         <div class="mb-3">
-                            {% if market_status.market_open or market_status.is_open %}
+                            {% if market_status and (market_status.get('is_trading') or market_status.get('market_open')) %}
                                 <span class="badge badge-custom bg-success">
                                     <i class="fas fa-play"></i> Market Open
                                 </span>
@@ -95,7 +106,7 @@
                     <div class="col-md-4">
                         <h6>System Status</h6>
                         <div class="mb-3">
-                            {% if system_status.running %}
+                            {% if system_status and system_status.get('running') %}
                                 <span class="badge badge-custom bg-success">
                                     <i class="fas fa-check"></i> Running
                                 </span>
@@ -104,16 +115,16 @@
                                     <i class="fas fa-exclamation"></i> Stopped
                                 </span>
                             {% endif %}
-                            {% if system_status.errors > 0 %}
+                            {% if system_status and system_status.get('errors', 0) > 0 %}
                                 <span class="badge badge-custom bg-danger ms-1">
-                                    {{ system_status.errors }} Errors
+                                    {{ system_status.get('errors', 0) }} Errors
                                 </span>
                             {% endif %}
                         </div>
                     </div>
                 </div>
                 
-                {% if regime.factors %}
+                {% if regime and regime.get('indicators') %}
                 <div class="row mt-3">
                     <div class="col-12">
                         <h6>Market Factors</h6>
@@ -121,32 +132,36 @@
                             <div class="col-md-3">
                                 <small class="text-muted">Stocks above EMA21</small>
                                 <div class="progress mb-2">
-                                    <div class="progress-bar" style="width: {{ regime.factors.stocks_above_ema21 or 0 }}%">
-                                        {{ "{:.0f}".format(regime.factors.stocks_above_ema21 or 0) }}%
+                                    {% set ema_val = regime.indicators.get('market_breadth', 0) %}
+                                    <div class="progress-bar" style="width: {{ ema_val }}%">
+                                        {{ "{:.0f}".format(ema_val) }}%
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <small class="text-muted">Average RSI</small>
                                 <div class="progress mb-2">
-                                    <div class="progress-bar bg-info" style="width: {{ regime.factors.avg_rsi or 0 }}%">
-                                        {{ "{:.0f}".format(regime.factors.avg_rsi or 0) }}
+                                    {% set rsi_val = regime.indicators.get('average_rsi', 0) %}
+                                    <div class="progress-bar bg-info" style="width: {{ rsi_val }}%">
+                                        {{ "{:.0f}".format(rsi_val) }}
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-3">
-                                <small class="text-muted">Market Breadth</small>
+                                <small class="text-muted">Volatility</small>
                                 <div class="progress mb-2">
-                                    <div class="progress-bar bg-warning" style="width: {{ (regime.factors.market_breadth or 0) * 100 }}%">
-                                        {{ "{:.1f}".format((regime.factors.market_breadth or 0) * 100) }}%
+                                    {% set vol_val = min(100, regime.indicators.get('volatility', 0) * 33) %}
+                                    <div class="progress-bar bg-warning" style="width: {{ vol_val }}%">
+                                        {{ "{:.1f}".format(regime.indicators.get('volatility', 0)) }}%
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <small class="text-muted">Price Momentum</small>
                                 <div class="progress mb-2">
-                                    <div class="progress-bar bg-success" style="width: {{ (regime.factors.price_momentum or 0) + 50 }}%">
-                                        {{ "{:.1f}".format(regime.factors.price_momentum or 0) }}%
+                                    {% set mom_val = max(0, min(100, regime.indicators.get('momentum', 0) + 50)) %}
+                                    <div class="progress-bar bg-success" style="width: {{ mom_val }}%">
+                                        {{ "{:.1f}".format(regime.indicators.get('momentum', 0)) }}%
                                     </div>
                                 </div>
                             </div>
@@ -167,29 +182,29 @@
                 </h5>
             </div>
             <div class="card-body">
-                {% set target_progress = (daily_pnl / 3000 * 100) if daily_pnl is not none else 0 %}
+                {% set target_progress = ((daily_pnl if daily_pnl is defined else 0) / 3000 * 100) %}
                 <div class="text-center mb-3">
-                    <h4 class="{% if daily_pnl >= 3000 %}text-success{% elif daily_pnl >= 0 %}text-warning{% else %}text-danger{% endif %}">
+                    <h4 class="{% if target_progress >= 100 %}text-success{% elif target_progress >= 0 %}text-warning{% else %}text-danger{% endif %}">
                         {{ "{:.1f}".format(target_progress) }}%
                     </h4>
                     <p class="text-muted mb-0">of ₹3,000 target</p>
                 </div>
                 
                 <div class="progress mb-3" style="height: 20px;">
-                    <div class="progress-bar {% if daily_pnl >= 3000 %}bg-success{% elif daily_pnl >= 0 %}bg-warning{% else %}bg-danger{% endif %}" 
+                    <div class="progress-bar {% if target_progress >= 100 %}bg-success{% elif target_progress >= 0 %}bg-warning{% else %}bg-danger{% endif %}" 
                          style="width: {{ max(0, min(100, target_progress)) }}%">
                     </div>
                 </div>
                 
                 <div class="d-flex justify-content-between text-small">
                     <span>₹0</span>
-                    <span class="fw-bold">₹{{ "{:,.0f}".format(daily_pnl or 0) }}</span>
+                    <span class="fw-bold">₹{{ "{:,.0f}".format(daily_pnl if daily_pnl is defined else 0) }}</span>
                     <span>₹3,000</span>
                 </div>
                 
-                {% if daily_pnl < 3000 %}
+                {% if target_progress < 100 %}
                 <small class="text-muted d-block mt-2 text-center">
-                    ₹{{ "{:,.0f}".format(3000 - (daily_pnl or 0)) }} remaining
+                    ₹{{ "{:,.0f}".format(3000 - (daily_pnl if daily_pnl is defined else 0)) }} remaining
                 </small>
                 {% endif %}
             </div>
@@ -198,14 +213,14 @@
 </div>
 
 <!-- Current Positions -->
-{% if portfolio.positions %}
+{% if portfolio and portfolio.get('positions') and portfolio.positions|length > 0 %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
                     <i class="fas fa-clipboard-list"></i>
-                    Current Positions
+                    Current Positions ({{ portfolio.positions|length }})
                 </h5>
             </div>
             <div class="card-body">
@@ -226,21 +241,39 @@
                         <tbody>
                             {% for position in portfolio.positions %}
                             <tr>
-                                <td class="fw-bold">{{ position.symbol }}</td>
-                                <td>{{ position.quantity }}</td>
-                                <td>₹{{ "{:.2f}".format(position.entry_price) }}</td>
-                                <td>₹{{ "{:.2f}".format(position.current_price) }}</td>
-                                <td class="{% if position.unrealized_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                    ₹{{ "{:.2f}".format(position.unrealized_pnl) }}
+                                <td class="fw-bold">{{ position.get('symbol', 'N/A') }}</td>
+                                <td>{{ position.get('quantity', 0) }}</td>
+                                <td>₹{{ "{:.2f}".format(position.get('entry_price', 0)) }}</td>
+                                <td>₹{{ "{:.2f}".format(position.get('current_price', 0)) }}</td>
+                                <td class="{% if position.get('unrealized_pnl', 0) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ₹{{ "{:.2f}".format(position.get('unrealized_pnl', 0)) }}
                                 </td>
-                                <td class="text-danger">₹{{ "{:.2f}".format(position.stop_loss) }}</td>
-                                <td class="text-success">₹{{ "{:.2f}".format(position.target_price) }}</td>
-                                <td>{{ position.entry_date }}</td>
+                                <td class="text-danger">₹{{ "{:.2f}".format(position.get('stop_loss', 0)) }}</td>
+                                <td class="text-success">₹{{ "{:.2f}".format(position.get('target_price', 0)) }}</td>
+                                <td>{{ position.get('entry_date', 'N/A') }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clipboard-list"></i>
+                    Current Positions
+                </h5>
+            </div>
+            <div class="card-body text-center py-4">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Active Positions</h5>
+                <p class="text-muted">Positions will appear here when trades are executed.</p>
             </div>
         </div>
     </div>
@@ -255,44 +288,47 @@
                 <h5 class="mb-0">
                     <i class="fas fa-signal"></i>
                     Latest Trading Signals
+                    <span class="badge badge-custom bg-primary ms-2">
+                        {{ signals|length if signals else 0 }} signals
+                    </span>
                 </h5>
                 <button class="btn btn-sm btn-outline-primary" onclick="refreshSignals()">
                     <i class="fas fa-sync"></i> Refresh
                 </button>
             </div>
             <div class="card-body">
-                {% if signals %}
+                {% if signals and signals|length > 0 %}
                     <div class="row">
                         {% for signal in signals %}
                         <div class="col-lg-6 col-xl-4 mb-3">
-                            <div class="card signal-card {{ signal.action.lower() if signal.action else '' }}">
+                            <div class="card signal-card {{ signal.get('action', '').lower() }}">
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="mb-0 fw-bold">{{ signal.symbol }}</h6>
-                                        <span class="badge badge-custom bg-{{ 'success' if signal.action == 'BUY' else 'danger' }}">
-                                            {{ signal.action }}
+                                        <h6 class="mb-0 fw-bold">{{ signal.get('symbol', 'UNKNOWN') }}</h6>
+                                        <span class="badge badge-custom bg-{{ 'success' if signal.get('action') == 'BUY' else 'danger' }}">
+                                            {{ signal.get('action', 'UNKNOWN') }}
                                         </span>
                                     </div>
                                     
                                     <div class="row text-small mb-2">
                                         <div class="col-6">
-                                            <strong>Price:</strong> ₹{{ "{:.2f}".format(signal.price) }}
+                                            <strong>Price:</strong> ₹{{ "{:.2f}".format(signal.get('price', 0)) }}
                                         </div>
                                         <div class="col-6">
-                                            <strong>Confidence:</strong> {{ "{:.0f}".format(signal.confidence) }}%
+                                            <strong>Confidence:</strong> {{ "{:.0f}".format(signal.get('confidence', 0)) }}%
                                         </div>
                                     </div>
                                     
                                     <div class="row text-small mb-2">
                                         <div class="col-6">
-                                            <strong>Stop Loss:</strong> ₹{{ "{:.2f}".format(signal.stop_loss or 0) }}
+                                            <strong>Stop Loss:</strong> ₹{{ "{:.2f}".format(signal.get('stop_loss', 0)) }}
                                         </div>
                                         <div class="col-6">
-                                            <strong>Target:</strong> ₹{{ "{:.2f}".format(signal.target_price or 0) }}
+                                            <strong>Target:</strong> ₹{{ "{:.2f}".format(signal.get('target_price', 0)) }}
                                         </div>
                                     </div>
                                     
-                                    {% if signal.reasons %}
+                                    {% if signal.get('reasons') %}
                                     <div class="mt-2">
                                         <small class="text-muted">Reasons:</small>
                                         <ul class="list-unstyled mb-0 mt-1">
@@ -308,7 +344,15 @@
                                     <div class="mt-2">
                                         <small class="text-muted">
                                             <i class="fas fa-clock"></i> 
-                                            {{ signal.timestamp.strftime('%H:%M:%S') if signal.timestamp is not none else 'N/A' }}
+                                            {% if signal.get('timestamp') %}
+                                                {% if signal.timestamp is string %}
+                                                    {{ signal.timestamp }}
+                                                {% else %}
+                                                    {{ signal.timestamp.strftime('%H:%M:%S') }}
+                                                {% endif %}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
                                         </small>
                                     </div>
                                 </div>
@@ -321,6 +365,9 @@
                         <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">No trading signals available</h5>
                         <p class="text-muted">Signals will appear here when market conditions are favorable.</p>
+                        <button class="btn btn-primary" onclick="generateTestSignal()">
+                            <i class="fas fa-magic"></i> Generate Test Signal
+                        </button>
                     </div>
                 {% endif %}
             </div>
@@ -335,122 +382,140 @@
         <div class="alert alert-danger">
             <h5><i class="fas fa-exclamation-triangle"></i> System Error</h5>
             <p class="mb-0">{{ error }}</p>
+            <button class="btn btn-sm btn-outline-danger mt-2" onclick="location.reload()">
+                <i class="fas fa-refresh"></i> Reload Page
+            </button>
         </div>
     </div>
 </div>
 {% endif %}
+
+<!-- Paper Trading Warning -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            <h6><i class="fas fa-shield-alt"></i> Paper Trading Mode</h6>
+            <p class="mb-0">
+                This system is running in <strong>PAPER TRADING</strong> mode. No real money is at risk. 
+                All trades are simulated for learning purposes only.
+                {% if zerodha_connected %}
+                    <br><strong>Zerodha Connected:</strong> Using real market data but simulated trades.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Auto-refresh dashboard data every 30 seconds
-    setInterval(function() {
-        if (document.visibilityState === 'visible') {
-            refreshDashboardData();
-        }
-    }, 30000);
+// Enhanced dashboard functionality
+function refreshSignals() {
+    const refreshBtn = document.querySelector('[onclick="refreshSignals()"]');
+    const originalText = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<i class="fas fa-spin fa-spinner"></i> Refreshing...';
+    refreshBtn.disabled = true;
     
-    function refreshDashboardData() {
-        // Refresh portfolio data
+    fetch('/api/signals')
+        .then(response => response.json())
+        .then(data => {
+            if (data && !data.error) {
+                location.reload();
+            } else {
+                showAlert('Failed to refresh signals: ' + (data.error || 'Unknown error'), 'warning');
+            }
+        })
+        .catch(error => {
+            showAlert('Error refreshing signals: ' + error.message, 'danger');
+        })
+        .finally(() => {
+            refreshBtn.innerHTML = originalText;
+            refreshBtn.disabled = false;
+        });
+}
+
+function generateTestSignal() {
+    fetch('/api/run_trading_session', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                showAlert(`Trading session completed! Generated ${data.signals_generated || 0} signals`, 'success');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showAlert('Failed to generate signals: ' + (data.message || 'Unknown error'), 'warning');
+            }
+        })
+        .catch(error => {
+            showAlert('Error generating signals: ' + error.message, 'danger');
+        });
+}
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+    if (document.visibilityState === 'visible') {
         fetch('/api/portfolio')
             .then(response => response.json())
             .then(data => {
                 if (data && !data.error) {
-                    updatePortfolioDisplay(data);
+                    updatePortfolioCards(data);
                 }
             })
-            .catch(error => console.error('Error refreshing portfolio:', error));
-        
-        // Refresh system status
-        fetch('/api/system_status')
-            .then(response => response.json())
-            .then(data => {
-                if (data && !data.error) {
-                    updateSystemStatus(data);
-                }
-            })
-            .catch(error => console.error('Error refreshing system status:', error));
+            .catch(error => console.log('Auto-refresh error:', error));
     }
-    
-    function refreshSignals() {
-        const refreshBtn = document.querySelector('[onclick="refreshSignals()"]');
-        const originalText = refreshBtn.innerHTML;
-        refreshBtn.innerHTML = '<i class="fas fa-spin fa-spinner"></i> Refreshing...';
-        refreshBtn.disabled = true;
-        
-        fetch('/api/signals')
-            .then(response => response.json())
-            .then(data => {
-                if (data && !data.error) {
-                    // Reload page to show new signals
-                    location.reload();
-                } else {
-                    showAlert('Failed to refresh signals', 'warning');
-                }
-            })
-            .catch(error => {
-                showAlert('Error refreshing signals: ' + error.message, 'danger');
-            })
-            .finally(() => {
-                refreshBtn.innerHTML = originalText;
-                refreshBtn.disabled = false;
-            });
-    }
-    
-    function updatePortfolioDisplay(portfolio) {
-        // Update portfolio value
-        const totalValueElement = document.querySelector('.stat-card .card-body h3');
-        if (totalValueElement && portfolio.total_value) {
-            totalValueElement.textContent = '₹' + portfolio.total_value.toLocaleString('en-IN', {minimumFractionDigits: 2});
-        }
-        
-        // Update positions count
-        const positionsElement = document.querySelector('.stat-card:nth-child(3) .card-body h3');
-        if (positionsElement && portfolio.positions_count !== undefined) {
-            positionsElement.textContent = portfolio.positions_count;
-        }
-    }
-    
-    function updateSystemStatus(status) {
-        const statusIndicator = document.getElementById('system-status');
-        if (statusIndicator) {
-            if (status.running) {
-                statusIndicator.innerHTML = '<i class="fas fa-circle text-success"></i>';
-            } else {
-                statusIndicator.innerHTML = '<i class="fas fa-circle text-danger"></i>';
-            }
-        }
-        
-        // Update last update time
-        if (status.last_update) {
-            const lastUpdateElement = document.getElementById('last-update');
-            if (lastUpdateElement) {
-                const updateTime = new Date(status.last_update);
-                lastUpdateElement.textContent = updateTime.toLocaleTimeString();
-            }
-        }
-    }
-    
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add smooth scrolling
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth' });
-                }
-            });
+}, 30000);
+
+function updatePortfolioCards(portfolio) {
+    // Update total value
+    const totalValueEl = document.querySelector('.stat-card:first-child h3');
+    if (totalValueEl && portfolio.total_value !== undefined) {
+        totalValueEl.textContent = '₹' + portfolio.total_value.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         });
-        
-        // Initialize tooltips if Bootstrap tooltips are available
-        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
+    }
+    
+    // Update positions count
+    const positionsEl = document.querySelector('.stat-card:nth-child(3) h3');
+    if (positionsEl && portfolio.positions_count !== undefined) {
+        positionsEl.textContent = portfolio.positions_count;
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 80px; right: 20px; z-index: 9999; max-width: 400px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
         }
-    });
+    }, 5000);
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard loaded successfully');
+    
+    // Check for data issues
+    const portfolio = {{ portfolio | tojson if portfolio else '{}' }};
+    const signals = {{ signals | tojson if signals else '[]' }};
+    
+    console.log('Portfolio data:', portfolio);
+    console.log('Signals data:', signals);
+    
+    if (Object.keys(portfolio).length === 0) {
+        console.warn('Portfolio data is empty');
+    }
+    
+    if (signals.length === 0) {
+        console.warn('No signals available');
+    }
+});
 </script>
 {% endblock %}

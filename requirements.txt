@@ -1,9 +1,12 @@
 # Core Dependencies
-flask==2.3.3
+Flask==2.3.3
 pandas==2.1.0
 numpy==1.24.3
 requests==2.31.0
 python-dotenv==1.0.0
+
+# Scheduling & Background Tasks
+schedule==1.2.0
 
 # Technical Analysis
 pandas-ta==0.3.14b0
@@ -11,10 +14,14 @@ pandas-ta==0.3.14b0
 # Data Sources (Reliable for Indian Markets)
 nsepy==0.8
 nsetools==1.0.11
+yfinance==0.2.20
 
 # Telegram Integration
 python-telegram-bot==20.5
 
+# Zerodha Integration (Optional)
+kiteconnect>=4.0.0
+pyotp>=2.6.0
 
 # Plotting & Visualization  
 plotly==5.16.1
@@ -26,9 +33,15 @@ aiofiles==23.2.1
 # Date/Time Handling
 pytz==2023.3
 
+# Database
+# sqlite3 is built into Python
+
 # Development Tools
 pytest==7.4.2
 black==23.7.0
 
-kiteconnect>=4.0.0
-pyotp>=2.6.0
+# Additional Requirements for Safety System
+# hashlib  # Built into Python
+# threading  # Built into Python
+# signal  # Built into Python
+# atexit  # Built into Python

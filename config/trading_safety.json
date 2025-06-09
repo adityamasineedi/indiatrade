@@ -1,0 +1,19 @@
+{
+  "trading_mode": "PAPER_ONLY",
+  "safety_level": "MAXIMUM",
+  "max_daily_loss": 1000.0,
+  "max_position_size": 10000.0,
+  "max_positions": 3,
+  "require_manual_confirmation": true,
+  "paper_trading_enforced": true,
+  "zerodha_live_trading_disabled": true,
+  "emergency_stop_on_loss": true,
+  "audit_all_trades": true,
+  "safety_checks_enabled": true,
+  "real_money_trading_allowed": false,
+  "confirmation_codes": {
+    "enable_live_trading": "DANGER_REAL_MONEY_2024",
+    "disable_safety": "EMERGENCY_OVERRIDE_2024",
+    "emergency_stop": "STOP_ALL_TRADING_NOW"
+  }
+}

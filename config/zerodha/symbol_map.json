@@ -3100,17 +3100,17 @@
     "lot_size": 1,
     "tick_size": 0.05
   },
-  "GTECJAINX": {
-    "instrument_token": 289025,
-    "exchange_token": "1129",
-    "name": "G-TEC JAINX EDUCATION",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
   "APOLLO": {
     "instrument_token": 290305,
     "exchange_token": "1134",
     "name": "APOLLO MICRO SYSTEMS",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "GTECJAINX-BE": {
+    "instrument_token": 290561,
+    "exchange_token": "1135",
+    "name": "G-TEC JAINX EDUCATION",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -3134,6 +3134,13 @@
     "name": "GLAXOSMITHKLINE PHARMA LT",
     "lot_size": 1,
     "tick_size": 0.1
+  },
+  "GLFL": {
+    "instrument_token": 295937,
+    "exchange_token": "1156",
+    "name": "GUJARAT LEASE FINANCING L",
+    "lot_size": 1,
+    "tick_size": 0.01
   },
   "654AR30-SG": {
     "instrument_token": 296193,
@@ -5179,9 +5186,9 @@
     "lot_size": 1,
     "tick_size": 0.05
   },
-  "GENCON": {
-    "instrument_token": 560129,
-    "exchange_token": "2188",
+  "GENCON-BE": {
+    "instrument_token": 560897,
+    "exchange_token": "2191",
     "name": "GENERIC ENG CONS PROJ",
     "lot_size": 1,
     "tick_size": 0.01
@@ -5935,19 +5942,19 @@
     "lot_size": 1,
     "tick_size": 0.5
   },
-  "DRCSYSTEMS": {
-    "instrument_token": 677121,
-    "exchange_token": "2645",
-    "name": "DRC SYSTEMS INDIA",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
   "PCBL": {
     "instrument_token": 678145,
     "exchange_token": "2649",
     "name": "PCBL CHEMICAL",
     "lot_size": 1,
     "tick_size": 0.05
+  },
+  "DRCSYSTEMS-BE": {
+    "instrument_token": 678657,
+    "exchange_token": "2651",
+    "name": "DRC SYSTEMS INDIA",
+    "lot_size": 1,
+    "tick_size": 0.01
   },
   "729KA39-SG": {
     "instrument_token": 679937,
@@ -8637,6 +8644,13 @@
     "lot_size": 100,
     "tick_size": 0.01
   },
+  "ELECTHERM": {
+    "instrument_token": 1144065,
+    "exchange_token": "4469",
+    "name": "ELECTROTHERM (I)",
+    "lot_size": 1,
+    "tick_size": 0.1
+  },
   "AARTIDRUGS": {
     "instrument_token": 1147137,
     "exchange_token": "4481",
@@ -11304,6 +11318,20 @@
     "lot_size": 1500,
     "tick_size": 0.05
   },
+  "ROLTA-BZ": {
+    "instrument_token": 1602049,
+    "exchange_token": "6258",
+    "name": "ROLTA INDIA",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "RAJVIR-BZ": {
+    "instrument_token": 1602305,
+    "exchange_token": "6259",
+    "name": "RAJVIR INDUSTRIES",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "SELMC-BE": {
     "instrument_token": 1606145,
     "exchange_token": "6274",
@@ -12823,9 +12851,9 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "HECPROJECT": {
-    "instrument_token": 1900801,
-    "exchange_token": "7425",
+  "HECPROJECT-BE": {
+    "instrument_token": 1901825,
+    "exchange_token": "7429",
     "name": "HEC INFRA PROJECTS",
     "lot_size": 1,
     "tick_size": 0.01
@@ -12928,6 +12956,13 @@
     "lot_size": 100,
     "tick_size": 0.01
   },
+  "LCCINFOTEC": {
+    "instrument_token": 1927425,
+    "exchange_token": "7529",
+    "name": "LCC INFOTECH",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "70MN31B-SG": {
     "instrument_token": 1927681,
     "exchange_token": "7530",
@@ -12968,13 +13003,6 @@
     "exchange_token": "7536",
     "name": "SDL HP 7.14% 2033",
     "lot_size": 100,
-    "tick_size": 0.01
-  },
-  "LCCINFOTEC-BE": {
-    "instrument_token": 1929473,
-    "exchange_token": "7537",
-    "name": "LCC INFOTECH",
-    "lot_size": 1,
     "tick_size": 0.01
   },
   "714TS33-SG": {
@@ -14356,13 +14384,6 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "GLFL-BE": {
-    "instrument_token": 2153473,
-    "exchange_token": "8412",
-    "name": "GUJARAT LEASE FINANCING L",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
   "MIDCAPETF": {
     "instrument_token": 2153729,
     "exchange_token": "8413",
@@ -14696,6 +14717,13 @@
     "instrument_token": 2212353,
     "exchange_token": "8642",
     "name": "",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "BLUECHIP-BE": {
+    "instrument_token": 2214401,
+    "exchange_token": "8650",
+    "name": "BLUE CHIP INDIA",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -15371,6 +15399,13 @@
     "lot_size": 1,
     "tick_size": 0.05
   },
+  "QUINTEGRA-BE": {
+    "instrument_token": 2400257,
+    "exchange_token": "9376",
+    "name": "QUINTEGRA SOLUTIONS",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "LEMERITE-ST": {
     "instrument_token": 2400513,
     "exchange_token": "9377",
@@ -15994,9 +16029,9 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "RILINFRA-SM": {
-    "instrument_token": 2522625,
-    "exchange_token": "9854",
+  "RILINFRA-ST": {
+    "instrument_token": 2523393,
+    "exchange_token": "9857",
     "name": "RACHANA INFRA",
     "lot_size": 100,
     "tick_size": 0.05
@@ -16008,17 +16043,17 @@
     "lot_size": 1000,
     "tick_size": 0.05
   },
+  "WEWIN": {
+    "instrument_token": 2524673,
+    "exchange_token": "9862",
+    "name": "WE WIN",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "NEXTMEDIA-BE": {
     "instrument_token": 2525185,
     "exchange_token": "9864",
     "name": "NEXT MEDIAWORKS",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
-  "WEWIN-BE": {
-    "instrument_token": 2525441,
-    "exchange_token": "9865",
-    "name": "WE WIN",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -16706,6 +16741,13 @@
     "exchange_token": "10357",
     "name": "SDL AS 7.83% 2032",
     "lot_size": 100,
+    "tick_size": 0.01
+  },
+  "UNIVAFOODS-BE": {
+    "instrument_token": 2653697,
+    "exchange_token": "10366",
+    "name": "UNIVA FOODS",
+    "lot_size": 1,
     "tick_size": 0.01
   },
   "78GJ32A-SG": {
@@ -18094,6 +18136,13 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "GFSTEELS-BE": {
+    "instrument_token": 2836225,
+    "exchange_token": "11079",
+    "name": "GRAND FOUNDRY",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "LIBAS": {
     "instrument_token": 2836993,
     "exchange_token": "11082",
@@ -18185,9 +18234,9 @@
     "lot_size": 1,
     "tick_size": 0.05
   },
-  "COFFEEDAY-BE": {
-    "instrument_token": 2859265,
-    "exchange_token": "11169",
+  "COFFEEDAY": {
+    "instrument_token": 2858241,
+    "exchange_token": "11165",
     "name": "COFFEE DAY ENTERPRISE",
     "lot_size": 1,
     "tick_size": 0.01
@@ -18632,6 +18681,13 @@
     "name": "TTK HEALTHCARE",
     "lot_size": 1,
     "tick_size": 0.1
+  },
+  "BGLOBAL-BZ": {
+    "instrument_token": 2910977,
+    "exchange_token": "11371",
+    "name": "BHARATIYA GLOBAL INFO",
+    "lot_size": 1,
+    "tick_size": 0.01
   },
   "BIOCON": {
     "instrument_token": 2911489,
@@ -19704,17 +19760,17 @@
     "lot_size": 1,
     "tick_size": 0.1
   },
+  "CYBERMEDIA": {
+    "instrument_token": 3031553,
+    "exchange_token": "11842",
+    "name": "CYBER MEDIA (INDIA)",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "955SCL27A-ZJ": {
     "instrument_token": 3031809,
     "exchange_token": "11843",
     "name": "",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
-  "CYBERMEDIA-BE": {
-    "instrument_token": 3032321,
-    "exchange_token": "11845",
-    "name": "CYBER MEDIA (INDIA)",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -20866,6 +20922,13 @@
     "lot_size": 1,
     "tick_size": 0.05
   },
+  "RCOM-BE": {
+    "instrument_token": 3376129,
+    "exchange_token": "13188",
+    "name": "RELIANCE COMMUNICATIONS L",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "ENIL": {
     "instrument_token": 3377153,
     "exchange_token": "13192",
@@ -21117,6 +21180,13 @@
     "name": "KEI INDUSTRIES",
     "lot_size": 1,
     "tick_size": 0.1
+  },
+  "ORTEL-BZ": {
+    "instrument_token": 3410177,
+    "exchange_token": "13321",
+    "name": "ORTEL COMMUNICATIONS",
+    "lot_size": 1,
+    "tick_size": 0.01
   },
   "DOLLEX-SM": {
     "instrument_token": 3410689,
@@ -21531,6 +21601,13 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "OMKARCHEM-BZ": {
+    "instrument_token": 3459841,
+    "exchange_token": "13515",
+    "name": "OMKAR SPL CHEM",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "EMAMILTD": {
     "instrument_token": 3460353,
     "exchange_token": "13517",
@@ -21741,9 +21818,9 @@
     "lot_size": 100,
     "tick_size": 0.01
   },
-  "SKYGOLD-BE": {
-    "instrument_token": 3490305,
-    "exchange_token": "13634",
+  "SKYGOLD": {
+    "instrument_token": 3489537,
+    "exchange_token": "13631",
     "name": "SKY GOLD AND DIAMONDS",
     "lot_size": 1,
     "tick_size": 0.05
@@ -24268,6 +24345,13 @@
     "lot_size": 1,
     "tick_size": 0.05
   },
+  "TECILCHEM-BE": {
+    "instrument_token": 3773185,
+    "exchange_token": "14739",
+    "name": "TECIL CHEMICALS",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "AXSENSEX": {
     "instrument_token": 3773953,
     "exchange_token": "14742",
@@ -24596,13 +24680,6 @@
     "name": "SAHYADRI INDUSTRIES",
     "lot_size": 1,
     "tick_size": 0.05
-  },
-  "ELECTHERM-BE": {
-    "instrument_token": 3814913,
-    "exchange_token": "14902",
-    "name": "ELECTROTHERM (I)",
-    "lot_size": 1,
-    "tick_size": 0.1
   },
   "KDDL": {
     "instrument_token": 3816449,
@@ -27425,19 +27502,19 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "GKWLIMITED": {
+    "instrument_token": 4443393,
+    "exchange_token": "17357",
+    "name": "GKW",
+    "lot_size": 1,
+    "tick_size": 0.1
+  },
   "UTKARSHBNK": {
     "instrument_token": 4443649,
     "exchange_token": "17358",
     "name": "UTKARSH SMALL FIN BANK L",
     "lot_size": 1,
     "tick_size": 0.01
-  },
-  "GKWLIMITED-BE": {
-    "instrument_token": 4444161,
-    "exchange_token": "17360",
-    "name": "GKW",
-    "lot_size": 1,
-    "tick_size": 0.1
   },
   "VINATIORGA": {
     "instrument_token": 4445185,
@@ -27670,17 +27747,17 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "INCREDIBLE": {
-    "instrument_token": 4481793,
-    "exchange_token": "17507",
-    "name": "INCREDIBLE INDUSTRIES",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
   "940SCL26C-AU": {
     "instrument_token": 4482049,
     "exchange_token": "17508",
     "name": "",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "INCREDIBLE-BE": {
+    "instrument_token": 4482817,
+    "exchange_token": "17511",
+    "name": "INCREDIBLE INDUSTRIES",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -28580,9 +28657,9 @@
     "lot_size": 1,
     "tick_size": 0.1
   },
-  "DOLPHIN-BE": {
-    "instrument_token": 4642817,
-    "exchange_token": "18136",
+  "DOLPHIN": {
+    "instrument_token": 4643585,
+    "exchange_token": "18139",
     "name": "DOLPHIN OFF ENT (IND) L",
     "lot_size": 1,
     "tick_size": 0.05
@@ -28627,6 +28704,13 @@
     "exchange_token": "18204",
     "name": "SDL BR 7.49% 2031",
     "lot_size": 100,
+    "tick_size": 0.01
+  },
+  "ARSSINFRA-BE": {
+    "instrument_token": 4660737,
+    "exchange_token": "18206",
+    "name": "ARSS INFRA PROJ.",
+    "lot_size": 1,
     "tick_size": 0.01
   },
   "ORIENTLTD": {
@@ -30505,6 +30589,13 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "SICALLOG-BE": {
+    "instrument_token": 4976641,
+    "exchange_token": "19440",
+    "name": "SICAL LOGISTICS",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "CAPTRUST-BE": {
     "instrument_token": 4979457,
     "exchange_token": "19451",
@@ -30687,13 +30778,6 @@
     "lot_size": 100,
     "tick_size": 0.01
   },
-  "IITL": {
-    "instrument_token": 4998401,
-    "exchange_token": "19525",
-    "name": "INDUSTRIAL INV TRUST",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
   "767AS33B-SG": {
     "instrument_token": 4998657,
     "exchange_token": "19526",
@@ -30706,6 +30790,13 @@
     "exchange_token": "19527",
     "name": "SDL GA 7.67% 2033",
     "lot_size": 100,
+    "tick_size": 0.01
+  },
+  "IITL-BE": {
+    "instrument_token": 4999425,
+    "exchange_token": "19529",
+    "name": "INDUSTRIAL INV TRUST",
+    "lot_size": 1,
     "tick_size": 0.01
   },
   "BAJAJCON": {
@@ -30953,10 +31044,24 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "PODDARHOUS-BZ": {
+    "instrument_token": 5036033,
+    "exchange_token": "19672",
+    "name": "PODDAR HOUSE & DVPT",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "GAYAPROJ-BZ": {
     "instrument_token": 5036801,
     "exchange_token": "19675",
     "name": "GAYATRI PROJECTS",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "CMICABLES-BZ": {
+    "instrument_token": 5037057,
+    "exchange_token": "19676",
+    "name": "CMI",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -32717,9 +32822,9 @@
     "lot_size": 100,
     "tick_size": 0.01
   },
-  "CBAZAAR-ST": {
-    "instrument_token": 5224705,
-    "exchange_token": "20409",
+  "CBAZAAR-SM": {
+    "instrument_token": 5223937,
+    "exchange_token": "20406",
     "name": "NET AVENUE TECHNOLOGIES L",
     "lot_size": 8000,
     "tick_size": 0.05
@@ -33718,6 +33823,13 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "GANGOTRI-BZ": {
+    "instrument_token": 5346817,
+    "exchange_token": "20886",
+    "name": "GANGOTRI TEXTILES",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "RBZJEWEL-BE": {
     "instrument_token": 5348609,
     "exchange_token": "20893",
@@ -34264,9 +34376,9 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "INDIFRA-ST": {
-    "instrument_token": 5391617,
-    "exchange_token": "21061",
+  "INDIFRA-SM": {
+    "instrument_token": 5390849,
+    "exchange_token": "21058",
     "name": "INDIFRA",
     "lot_size": 2000,
     "tick_size": 0.05
@@ -35349,13 +35461,6 @@
     "lot_size": 100,
     "tick_size": 0.01
   },
-  "LASA": {
-    "instrument_token": 5558529,
-    "exchange_token": "21713",
-    "name": "LASA SUPERGENERICS",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
   "665PN50-SG": {
     "instrument_token": 5559297,
     "exchange_token": "21716",
@@ -35375,6 +35480,13 @@
     "exchange_token": "21719",
     "name": "SDL PN 6.7% 2030",
     "lot_size": 100,
+    "tick_size": 0.01
+  },
+  "LASA-BE": {
+    "instrument_token": 5561089,
+    "exchange_token": "21723",
+    "name": "LASA SUPERGENERICS",
+    "lot_size": 1,
     "tick_size": 0.01
   },
   "MATRIMONY": {
@@ -35409,6 +35521,13 @@
     "instrument_token": 5565697,
     "exchange_token": "21741",
     "name": "",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "EDUCOMP-BZ": {
+    "instrument_token": 5567233,
+    "exchange_token": "21747",
+    "name": "EDUCOMP SOLUTIONS",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -40732,9 +40851,9 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "BLUEPEBBLE-ST": {
-    "instrument_token": 5993729,
-    "exchange_token": "23413",
+  "BLUEPEBBLE-SM": {
+    "instrument_token": 5992961,
+    "exchange_token": "23410",
     "name": "BLUE PEBBLE",
     "lot_size": 400,
     "tick_size": 0.05
@@ -41614,9 +41733,9 @@
     "lot_size": 1,
     "tick_size": 0.1
   },
-  "EMMIL-ST": {
-    "instrument_token": 6079489,
-    "exchange_token": "23748",
+  "EMMIL-SM": {
+    "instrument_token": 6078721,
+    "exchange_token": "23745",
     "name": "ENERGY MISSION MACH IND L",
     "lot_size": 250,
     "tick_size": 0.05
@@ -42620,6 +42739,13 @@
     "exchange_token": "24105",
     "name": "SDL JK 7.33% 2051",
     "lot_size": 100,
+    "tick_size": 0.01
+  },
+  "SKIL-BZ": {
+    "instrument_token": 6171393,
+    "exchange_token": "24107",
+    "name": "SKIL INFRASTRUCTURE",
+    "lot_size": 1,
     "tick_size": 0.01
   },
   "GPECO-SM": {
@@ -43770,9 +43896,9 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "RNFI-ST": {
-    "instrument_token": 6295553,
-    "exchange_token": "24592",
+  "RNFI-SM": {
+    "instrument_token": 6294785,
+    "exchange_token": "24589",
     "name": "RNFI SERVICES",
     "lot_size": 600,
     "tick_size": 0.05
@@ -43840,9 +43966,9 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "APRAMEYA-SM": {
-    "instrument_token": 6307329,
-    "exchange_token": "24638",
+  "APRAMEYA-ST": {
+    "instrument_token": 6308097,
+    "exchange_token": "24641",
     "name": "APRAMEYA ENGINEERING",
     "lot_size": 1000,
     "tick_size": 0.05
@@ -45506,9 +45632,9 @@
     "lot_size": 3000,
     "tick_size": 0.05
   },
-  "AUSL-ST": {
-    "instrument_token": 6464257,
-    "exchange_token": "25251",
+  "AUSL-SM": {
+    "instrument_token": 6463489,
+    "exchange_token": "25248",
     "name": "ADITYA ULTRA STEEL",
     "lot_size": 2000,
     "tick_size": 0.05
@@ -45527,9 +45653,9 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "TOLINS-BE": {
-    "instrument_token": 6467585,
-    "exchange_token": "25264",
+  "TOLINS": {
+    "instrument_token": 6467073,
+    "exchange_token": "25262",
     "name": "TOLINS TYRES",
     "lot_size": 1,
     "tick_size": 0.01
@@ -46276,6 +46402,13 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "TECHIN-BZ": {
+    "instrument_token": 6548737,
+    "exchange_token": "25581",
+    "name": "TECHINDIA NIRMAN",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "TRITURBINE": {
     "instrument_token": 6549505,
     "exchange_token": "25584",
@@ -47001,6 +47134,13 @@
     "instrument_token": 6624769,
     "exchange_token": "25878",
     "name": "ANKIT MET & POW",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "EROSMEDIA-BZ": {
+    "instrument_token": 6625281,
+    "exchange_token": "25880",
+    "name": "EROS INTL MEDIA",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -48761,12 +48901,12 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
-  "SUULD-BZ": {
-    "instrument_token": 7333377,
-    "exchange_token": "28646",
-    "name": "SUUMAYA INDUSTRIES",
-    "lot_size": 1,
-    "tick_size": 0.01
+  "CLOUD-SZ": {
+    "instrument_token": 7335169,
+    "exchange_token": "28653",
+    "name": "VARANIUM CLOUD",
+    "lot_size": 1000,
+    "tick_size": 0.05
   },
   "DAMCAPITAL": {
     "instrument_token": 7337473,
@@ -49027,17 +49167,17 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "PROZONER": {
+    "instrument_token": 7387905,
+    "exchange_token": "28859",
+    "name": "PROZONE REALTY",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "IHF261224-N1": {
     "instrument_token": 7388417,
     "exchange_token": "28861",
     "name": "",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
-  "PROZONER-BE": {
-    "instrument_token": 7388929,
-    "exchange_token": "28863",
-    "name": "PROZONE REALTY",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -49850,6 +49990,13 @@
     "instrument_token": 7464193,
     "exchange_token": "29157",
     "name": "CAPITAL INFRA TRUST",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "SWANDEF-BE": {
+    "instrument_token": 7465985,
+    "exchange_token": "29164",
+    "name": "SWAN DEFENCE N HEVY IND L",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -51806,6 +51953,13 @@
     "lot_size": 1,
     "tick_size": 0.01
   },
+  "FCONSUMER-BE": {
+    "instrument_token": 7690497,
+    "exchange_token": "30041",
+    "name": "FUTURE CONSUMER",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
   "809CANF27-N0": {
     "instrument_token": 7691521,
     "exchange_token": "30045",
@@ -53364,13 +53518,6 @@
     "instrument_token": 193505537,
     "exchange_token": "755881",
     "name": "ICICIPRAMC - EVIETF",
-    "lot_size": 1,
-    "tick_size": 0.01
-  },
-  "MARSHALL-BZ": {
-    "instrument_token": 193516545,
-    "exchange_token": "755924",
-    "name": "MARSHALL MACHINES",
     "lot_size": 1,
     "tick_size": 0.01
   },
@@ -55225,6 +55372,20 @@
   "708JCL28-N0": {
     "instrument_token": 193880321,
     "exchange_token": "757345",
+    "name": "",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "SEPC-RE3-BE": {
+    "instrument_token": 193884161,
+    "exchange_token": "757360",
+    "name": "SEPC",
+    "lot_size": 1,
+    "tick_size": 0.01
+  },
+  "760GFL30-N0": {
+    "instrument_token": 193885441,
+    "exchange_token": "757365",
     "name": "",
     "lot_size": 1,
     "tick_size": 0.01
